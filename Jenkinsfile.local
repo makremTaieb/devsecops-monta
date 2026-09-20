@@ -1,0 +1,115 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'EXECUTION_ID', defaultValue: '1', description: 'Execution ID from the platform')
+        string(name: 'PROJECT_ID', defaultValue: '1', description: 'Project ID from the platform')
+        string(name: 'COMMIT_HASH', defaultValue: 'HEAD', description: 'Git revision to build')
+    }
+
+    environment {
+        SONAR_URL = 'http://stb-sonarqube:9000'
+        NEXUS_URL = 'http://stb-nexus:8081'
+        NEXUS_REPOSITORY = 'devsecops-artifacts'
+        NEXUS_USER = 'admin'
+        GATEWAY_URL = 'http://stb-gateway:8084'
+        IMAGE_PREFIX = 'pfe-local'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: env.GITHUB_REPOSITORY_URL
+                sh 'git checkout "${COMMIT_HASH}" || true'
+            }
+        }
+
+        stage('Build & Unit Tests') {
+            steps {
+                sh 'mvn --batch-mode clean verify'
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                sh '''
+                    SONAR_TOKEN=$(cat /run/sonar-bootstrap/sonar-token)
+                    mvn --batch-mode org.sonarsource.scanner.maven:sonar-maven-plugin:3.11.0.3922:sonar \
+                      -Dsonar.projectKey=pfe-devsecops-local \
+                      -Dsonar.projectName="PFE DevSecOps Local" \
+                      -Dsonar.host.url=${SONAR_URL} \
+                      -Dsonar.login=${SONAR_TOKEN}
+                '''
+            }
+        }
+
+        stage('Security Scans') {
+            steps {
+                sh '''
+                    gitleaks detect --source . --config .gitleaks.toml \
+                      --report-format json --report-path gitleaks.json --no-banner || true
+                    test -s gitleaks.json || echo '[]' > gitleaks.json
+
+                    trivy fs --format json --output trivy.json --ignore-unfixed \
+                      --severity HIGH,CRITICAL \
+                      --skip-dirs frontend/node_modules \
+                      --skip-dirs frontend/.angular \
+                      --skip-dirs frontend/dist \
+                      --ignorefile .trivyignore . || true
+                    test -s trivy.json || echo '{"Results":[]}' > trivy.json
+                '''
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                sh '''
+                    docker build -t ${IMAGE_PREFIX}/auth-service:${BUILD_NUMBER} ./Auth-Service
+                    docker build -t ${IMAGE_PREFIX}/pipeline-service:${BUILD_NUMBER} ./Pipeline-Service
+                    docker build -t ${IMAGE_PREFIX}/security-service:${BUILD_NUMBER} ./SECURITY-SERVICE
+                    docker build -t ${IMAGE_PREFIX}/frontend:${BUILD_NUMBER} ./frontend
+                '''
+            }
+        }
+
+        stage('Publish to Nexus') {
+            steps {
+                sh '''
+                    mkdir -p nexus-bundle
+                    find . -path '*/target/*.jar' -type f -exec cp {} nexus-bundle/ \\;
+                    cp trivy.json gitleaks.json nexus-bundle/
+                    printf '{"build":%s,"commit":"%s","projectId":"%s"}\n' \
+                      "${BUILD_NUMBER}" "$(git rev-parse HEAD)" "${PROJECT_ID}" > nexus-bundle/build-info.json
+
+                    for artifact in nexus-bundle/*; do
+                      curl -fsS -u "${NEXUS_USER}:${NEXUS_ADMIN_PASSWORD}" --upload-file "$artifact" \
+                        "${NEXUS_URL}/repository/${NEXUS_REPOSITORY}/${JOB_NAME}/${BUILD_NUMBER}/$(basename "$artifact")"
+                    done
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'trivy.json,gitleaks.json,nexus-bundle/*', allowEmptyArchive: true, fingerprint: true
+        }
+        success {
+            sh '''
+                curl -fsS -X PUT "${GATEWAY_URL}/api/executions/${EXECUTION_ID}/status" \
+                  -H 'Content-Type: application/json' -d '{"status":"SUCCESS"}' || true
+            '''
+        }
+        failure {
+            sh '''
+                curl -fsS -X PUT "${GATEWAY_URL}/api/executions/${EXECUTION_ID}/status" \
+                  -H 'Content-Type: application/json' -d '{"status":"FAILED"}' || true
+            '''
+        }
+    }
+}

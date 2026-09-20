@@ -1,0 +1,33 @@
+jenkins:
+  systemMessage: "PFE DevSecOps - environnement local Docker"
+  numExecutors: 2
+  mode: NORMAL
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_ID}"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+unclassified:
+  location:
+    url: "http://localhost:8080/"
+
+jobs:
+  - script: >
+      pipelineJob('devsecops-pipeline') {
+        description('Pipeline local PFE: tests, SonarQube, scans de securite, images Docker et publication Nexus.')
+        parameters {
+          stringParam('EXECUTION_ID', '1', 'Execution ID from the platform')
+          stringParam('PROJECT_ID', '1', 'Project ID from the platform')
+          stringParam('COMMIT_HASH', 'HEAD', 'Git revision to build')
+        }
+        definition {
+          cps {
+            script(new File('/opt/jenkins/Jenkinsfile.local').getText('UTF-8'))
+            sandbox()
+          }
+        }
+      }

@@ -3,8 +3,8 @@
 ## Prérequis
 
 - Docker Desktop ou Docker Engine avec Compose v2
-- Environ 8 Go de RAM disponibles
-- Les ports 4200, 8081, 8082, 8083, 8084, 8085, 8087, 8761, 9090, 3000 et 3306 libres
+- Au moins 12 Go de RAM attribués à Docker Desktop pour lancer toute la démo
+- Les ports 3000, 3306, 4200, 5000, 8080 à 8087, 8761, 9001 et 9090 libres
 
 ## Démarrage
 
@@ -14,21 +14,43 @@ docker compose up --build -d
 docker compose ps
 ```
 
-L'interface est disponible sur <http://localhost:4200>. Eureka est sur
-<http://localhost:8761>, Prometheus sur <http://localhost:9090> et Grafana sur
-<http://localhost:3000> (`admin` / `admin` par défaut en local).
+L'interface est disponible sur <http://localhost:4200>. Les outils de la démo sont :
 
-Les valeurs par défaut permettent de démarrer la plateforme sans Jenkins ni serveur
-SMTP. Pour déclencher réellement des pipelines ou envoyer des emails, copier
-`.env.example` vers `.env` et renseigner les identifiants correspondants.
+| Composant | URL | Identifiants locaux |
+|---|---|---|
+| Jenkins | <http://localhost:8080> | `admin` / `admin` |
+| SonarQube | <http://localhost:9001> | `admin` / `admin-local` |
+| Nexus | <http://localhost:8086> | `admin` / `admin-local` |
+| Eureka | <http://localhost:8761> | aucun |
+| Prometheus | <http://localhost:9090> | aucun |
+| Grafana | <http://localhost:3000> | `admin` / `admin` |
+
+Ces identifiants sont volontairement réservés à la démonstration locale. Modifiez-les
+dans `.env` avant toute utilisation partagée ou tout déploiement hors du poste local.
+
+Jenkins crée automatiquement le job `devsecops-pipeline`, basé sur
+`Jenkinsfile.local`. Ce pipeline compile et teste les microservices, lance l'analyse
+SonarQube, exécute Gitleaks et Trivy, construit quatre images Docker de démonstration,
+puis publie les JAR et les rapports dans le dépôt Nexus `devsecops-artifacts`.
+
+Pour changer les mots de passe ou utiliser un autre dépôt Git, copiez `.env.example`
+vers `.env` avant le premier démarrage et modifiez les valeurs. L'envoi d'e-mails
+reste désactivé tant que les paramètres SMTP ne sont pas renseignés.
 
 ## Vérification rapide
 
 ```bash
 curl http://localhost:8084/actuator/health
 curl http://localhost:8081/actuator/health
+curl http://localhost:9001/api/system/status
+curl http://localhost:8086/service/rest/v1/status
+curl http://localhost:8080/login
 curl http://localhost:4200
 ```
+
+Pour lancer manuellement la preuve de concept : ouvrez Jenkins, sélectionnez
+`devsecops-pipeline`, puis **Build with Parameters**. Depuis la plateforme, utilisez
+exactement `devsecops-pipeline` comme nom de job lors de la création du pipeline.
 
 ## Arrêt
 
@@ -36,7 +58,8 @@ curl http://localhost:4200
 docker compose down
 ```
 
-Les données MySQL, Prometheus et Grafana sont conservées dans des volumes nommés.
+Les données MySQL, Prometheus, Grafana, Jenkins, SonarQube et Nexus sont conservées
+dans des volumes nommés.
 Pour réinitialiser volontairement toutes les données locales :
 
 ```bash
