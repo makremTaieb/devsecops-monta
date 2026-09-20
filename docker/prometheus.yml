@@ -1,0 +1,14 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: application-services
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - stb-auth:8081
+          - stb-pipeline:8082
+          - stb-security:8083
+          - stb-gateway:8084
+          - stb-audit:8085
+          - stb-notification:8087

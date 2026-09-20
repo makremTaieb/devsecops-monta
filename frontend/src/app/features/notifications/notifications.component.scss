@@ -1,0 +1,183 @@
+// ── notifications.component.scss ───────────────────────────────
+.page { max-width: 900px; }
+ 
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+ 
+  h1 { font-size:1.55rem; font-weight:700; color:#1a1f2e; letter-spacing:-0.4px; margin:0 0 5px; }
+  p  { font-size:.85rem; color:#999; margin:0; }
+}
+ 
+.err-count { color:#dc2626; font-weight:600; }
+ 
+.btn-refresh {
+  display:flex; align-items:center; justify-content:center;
+  width:36px; height:36px;
+  background:#fff; border:1px solid #eaecf0; border-radius:8px;
+  cursor:pointer; color:#888; flex-shrink:0;
+  transition:all .15s;
+ 
+  &:hover { color:#1d9e75; border-color:#1d9e75; }
+}
+ 
+.filter-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+ 
+.filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1.5px solid #e5e7eb;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: #666;
+  font-weight: 500;
+  transition: all 0.15s;
+ 
+  &:hover  { border-color: #1d9e75; color: #1d9e75; }
+  &.active { background: #1d9e75; border-color: #1d9e75; color: #fff; }
+}
+ 
+.filter-count {
+  background: rgba(0,0,0,.1);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+ 
+  &.red { background: #fef2f2; color: #dc2626; }
+}
+ 
+.loading-state { display:flex; align-items:center; gap:12px; padding:2rem; color:#aaa; font-size:.875rem; }
+.spinner { width:18px; height:18px; border:2px solid #e5e7eb; border-top-color:#1d9e75; border-radius:50%; animation:spin .75s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+ 
+.notif-list { display: flex; flex-direction: column; gap: 8px; }
+ 
+.notif-card {
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #eaecf0;
+  border-left: 4px solid #e5e7eb;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  transition: box-shadow 0.2s;
+ 
+  &:hover { box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+  &.sent    { border-left-color: #16a34a; }
+  &.failed  { border-left-color: #dc2626; }
+  &.pending { border-left-color: #d97706; }
+}
+ 
+.notif-icon {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 10px;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+ 
+  &.green  { background: #f0fdf4; }
+  &.red    { background: #fef2f2; }
+  &.orange { background: #fffbeb; }
+}
+ 
+.notif-body { flex: 1; min-width: 0; }
+ 
+.notif-type {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1a1f2e;
+  margin-bottom: 4px;
+}
+ 
+.notif-recip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  color: #888;
+  margin-bottom: 5px;
+}
+ 
+.notif-msg {
+  font-size: 0.8rem;
+  color: #aaa;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 400px;
+}
+ 
+.notif-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  flex-shrink: 0;
+}
+ 
+.channel-badge {
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: #eff6ff;
+  color: #2563eb;
+ 
+  &.slack { background: #f5f3ff; color: #7c3aed; }
+}
+ 
+.status-badge {
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: #f3f4f6;
+  color: #666;
+ 
+  &.sent    { background: #f0fdf4; color: #16a34a; }
+  &.failed  { background: #fef2f2; color: #dc2626; }
+  &.pending { background: #fffbeb; color: #d97706; }
+}
+ 
+.notif-dates {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 0.72rem;
+  color: #bbb;
+}
+ 
+.sent-at { color: #16a34a; }
+ 
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem;
+  gap: 14px;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #eaecf0;
+ 
+  p { font-size: 0.875rem; color: #bbb; }
+}
+ 

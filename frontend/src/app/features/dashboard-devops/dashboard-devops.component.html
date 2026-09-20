@@ -1,0 +1,386 @@
+<div class="page">
+
+  <!-- ══ HEADER ════════════════════════════════════════════════ -->
+  <div class="page-header">
+    <div>
+      <h1>Dashboard DevOps</h1>
+      <p>Bienvenue, <strong>{{ auth.username }}</strong>
+        <span class="role-pill" data-role="DEVOPS">DEVOPS</span>
+      </p>
+    </div>
+    <div class="header-right">
+      <span class="refresh-info">{{ lastRefresh() | date:'HH:mm:ss' }}</span>
+      <button class="btn-refresh" (click)="loadAll()" [disabled]="loading()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+        </svg>
+        Actualiser
+      </button>
+      <span class="today-badge">{{ today | date:'EEE d MMM yyyy' : '' : 'fr' }}</span>
+    </div>
+  </div>
+
+  <ng-container *ngIf="loading()">
+    <div class="skeleton-grid"><div class="skeleton-card" *ngFor="let i of [1,2,3,4,5]"></div></div>
+  </ng-container>
+
+  <ng-container *ngIf="!loading()">
+
+    <!-- ══ ROW 1 — KPIs ══════════════════════════════════════════ -->
+    <div class="kpi-grid">
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ kpis().projects }}</div>
+          <div class="kpi-label">Projets</div>
+          <div class="kpi-sub">{{ kpis().active }} actifs</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-green">
+        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ kpis().succeeded }}</div>
+          <div class="kpi-label">Pipelines réussis</div>
+          <div class="kpi-sub">{{ successRate() }}% succès</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-red">
+        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ kpis().failed }}</div>
+          <div class="kpi-label">Pipelines échoués</div>
+          <div class="kpi-sub">{{ kpis().deployFailed }} dépl. échoués</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-orange">
+        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ securityScore() }}<span class="kpi-unit">%</span></div>
+          <div class="kpi-label">Score sécurité</div>
+          <div class="kpi-sub">{{ kpis().blocked }} alertes</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-teal">
+        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ deployFrequency().value }}</div>
+          <div class="kpi-label">Déploiements / jour</div>
+          <div class="kpi-sub">{{ kpis().pipelines }} pipelines</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ROW 2 — ALERTES PIPELINE + BUILD HISTORY + SANTÉ ══════ -->
+    <div class="three-col-row">
+
+      <!-- Alertes pipeline (vuln bar chart) -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Alertes pipeline</h3>
+          <button class="btn-refresh-sm" (click)="loadAll(false)">refresh</button>
+        </div>
+        <div class="vuln-legend">
+          <span class="vleg vleg-trivy-crit">■ Trivy Critical</span>
+          <span class="vleg vleg-trivy-high">■ Trivy High</span>
+          <span class="vleg vleg-owasp-crit">■ OWASP Critical</span>
+          <span class="vleg vleg-owasp-high">■ OWASP High</span>
+          <span class="vleg vleg-sonar-bugs">■ Sonar Bugs</span>
+          <span class="vleg vleg-sonar-vuln">■ Sonar Vuln</span>
+        </div>
+        <div class="vuln-chart-wrap">
+          <svg viewBox="0 0 260 130" width="100%" preserveAspectRatio="none">
+            <!-- grid lines -->
+            <line *ngFor="let p of [25,50,75,100]"
+                  [attr.x1]="0" [attr.y1]="100-p" [attr.x2]="260" [attr.y2]="100-p"
+                  stroke="#f3f4f6" stroke-width="0.5"/>
+            <ng-container *ngFor="let b of vulnByBuild(); let i=index">
+              <ng-container *ngIf="maxVuln() as mv">
+                <rect [attr.x]="i*33+2" [attr.y]="100-(b.trivyCrit/mv)*80" [attr.width]="4" [attr.height]="(b.trivyCrit/mv)*80" fill="#dc2626" rx="1"/>
+                <rect [attr.x]="i*33+7" [attr.y]="100-(b.trivyHigh/mv)*80" [attr.width]="4" [attr.height]="(b.trivyHigh/mv)*80" fill="#f87171" rx="1"/>
+                <rect [attr.x]="i*33+12" [attr.y]="100-(b.owaspCrit/mv)*80" [attr.width]="4" [attr.height]="(b.owaspCrit/mv)*80" fill="#d97706" rx="1"/>
+                <rect [attr.x]="i*33+17" [attr.y]="100-(b.owaspHigh/mv)*80" [attr.width]="4" [attr.height]="(b.owaspHigh/mv)*80" fill="#fbbf24" rx="1"/>
+                <rect [attr.x]="i*33+22" [attr.y]="100-(b.sonarBugs/mv)*80" [attr.width]="4" [attr.height]="(b.sonarBugs/mv)*80" fill="#7c3aed" rx="1"/>
+                <rect [attr.x]="i*33+27" [attr.y]="100-(b.sonarVuln/mv)*80" [attr.width]="4" [attr.height]="(b.sonarVuln/mv)*80" fill="#a78bfa" rx="1"/>
+                <text [attr.x]="i*33+15" y="112" text-anchor="middle" font-size="7" fill="#9ca3af">{{ b.label }}</text>
+              </ng-container>
+            </ng-container>
+            <line x1="0" y1="100" x2="260" y2="100" stroke="#e5e7eb" stroke-width="0.5"/>
+          </svg>
+        </div>
+        <div class="vuln-bottom-legend">
+          <span class="vbot vbot-crit">■ Critical</span>
+          <span class="vbot vbot-high">■ High</span>
+          <span class="vbot vbot-bugs">■ Bugs</span>
+        </div>
+        <div class="vuln-no-data" *ngIf="!secScans().length && !executions().length">
+          <p>En attente de données de scan…</p>
+        </div>
+      </div>
+
+      <!-- Historique des builds (line chart) -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Historique des builds</h3>
+          <span class="sub-label">Statut global &amp; couverture de code par build</span>
+        </div>
+        <div class="build-chart-wrap">
+          <svg viewBox="0 0 260 130" width="100%" preserveAspectRatio="none">
+            <!-- grid lines -->
+            <line *ngFor="let p of [25,50,75,100]"
+                  [attr.x1]="0" [attr.y1]="120-(p*1.0)" [attr.x2]="260" [attr.y2]="120-(p*1.0)"
+                  stroke="#f3f4f6" stroke-width="0.5"/>
+            <!-- status dots -->
+            <ng-container *ngFor="let b of buildHistoryChart(); let i=index">
+              <circle [attr.cx]="i*(260/(buildHistoryChart().length||1))+12"
+                      [attr.cy]="b.ok ? 20 : b.failed ? 100 : 60"
+                      r="4"
+                      [attr.fill]="b.ok ? '#16a34a' : b.failed ? '#dc2626' : '#d97706'"/>
+            </ng-container>
+            <!-- test coverage line -->
+            <polyline *ngIf="testCovPoints()"
+              [attr.points]="testCovPoints()"
+              fill="none" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="3,2"/>
+            <!-- sonar coverage line -->
+            <polyline *ngIf="sonarCovPoints()"
+              [attr.points]="sonarCovPoints()"
+              fill="none" stroke="#d97706" stroke-width="1.5" stroke-dasharray="3,2"/>
+            <line x1="0" y1="120" x2="260" y2="120" stroke="#e5e7eb" stroke-width="0.5"/>
+          </svg>
+        </div>
+        <div class="build-chart-legend">
+          <span class="bcleg bcleg-ok">● OK</span>
+          <span class="bcleg bcleg-fail">● Fail</span>
+          <span class="bcleg bcleg-tests">— Couv. Tests (%)</span>
+          <span class="bcleg bcleg-sonar">— Couv. Sonar (%)</span>
+        </div>
+        <!-- Last 5 builds mini list -->
+        <div class="build-mini-list">
+          <div class="build-mini-item" *ngFor="let b of buildHistoryChart().slice(0,5)">
+            <span class="build-mini-dot" [class.dot-ok]="b.ok" [class.dot-fail]="b.failed">{{ b.ok ? '●' : '●' }}</span>
+            <span class="build-mini-lbl">{{ b.label }}</span>
+            <span class="build-mini-cov">Tests {{ b.testCov }}%</span>
+          </div>
+          <div class="empty-panel" *ngIf="!buildHistoryChart().length"><p>Aucune exécution disponible</p></div>
+        </div>
+      </div>
+
+      <!-- Santé des services (radar) -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Santé des services</h3>
+          <span class="sub-label">Score moyen de chaque stage (tous builds)</span>
+        </div>
+        <div class="radar-wrap">
+          <svg viewBox="0 0 180 180" width="100%">
+            <!-- grid circles -->
+            <circle *ngFor="let r of [17,35,52,70]" cx="90" cy="90" [attr.r]="r" fill="none" stroke="#f3f4f6" stroke-width="0.8"/>
+            <!-- axis lines -->
+            <line *ngFor="let ax of radarAxes()" cx="90" cy="90"
+                  [attr.x1]="90" [attr.y1]="90" [attr.x2]="ax.x" [attr.y2]="ax.y"
+                  stroke="#e5e7eb" stroke-width="0.8"/>
+            <!-- filled polygon -->
+            <polygon [attr.points]="radarPointsStr()"
+                     fill="rgba(139,92,246,0.18)" stroke="#7c3aed" stroke-width="1.5"/>
+            <!-- dots on polygon -->
+            <circle *ngFor="let p of radarPoints()" [attr.cx]="p.x" [attr.cy]="p.y" r="3" fill="#7c3aed"/>
+            <!-- axis labels -->
+            <text *ngFor="let ax of radarAxes()"
+                  [attr.x]="ax.x" [attr.y]="ax.y"
+                  [attr.dx]="ax.x > 91 ? 6 : ax.x < 89 ? -6 : 0"
+                  [attr.dy]="ax.y > 91 ? 10 : ax.y < 89 ? -6 : 4"
+                  [attr.text-anchor]="ax.x > 91 ? 'start' : ax.x < 89 ? 'end' : 'middle'"
+                  font-size="8" fill="#6b7280">{{ ax.lbl }}</text>
+          </svg>
+        </div>
+        <div class="radar-scores">
+          <div class="rscore" *ngFor="let item of [
+            {lbl:'Build',  val: serviceHealth().build},
+            {lbl:'Tests',  val: serviceHealth().tests},
+            {lbl:'Sonar',  val: serviceHealth().sonar},
+            {lbl:'OWASP',  val: serviceHealth().owasp},
+            {lbl:'Nexus',  val: serviceHealth().nexus},
+            {lbl:'Deploy', val: serviceHealth().deploy}
+          ]">
+            <span class="rscore-lbl">{{ item.lbl }}</span>
+            <span class="rscore-val" [ngClass]="healthClass(item.val)">{{ healthLabel(item.val) }}</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ══ ROW 3 — ACTIVITY CHART ═════════════════════════════════ -->
+    <div class="section-card">
+      <div class="section-header">
+        <h3>Activité pipeline — 14 derniers jours</h3>
+        <div class="chart-legend">
+          <span class="leg leg-green">Succès</span>
+          <span class="leg leg-red">Échecs</span>
+          <span class="leg leg-orange">Sécurité</span>
+        </div>
+      </div>
+      <div class="bar-chart-wrap">
+        <svg [attr.viewBox]="'0 0 ' + chartW + ' ' + (chartH + 28)" width="100%" preserveAspectRatio="none">
+          <line *ngFor="let pct of [25,50,75,100]"
+                [attr.x1]="0" [attr.y1]="chartH-20-((pct/100)*(chartH-20))"
+                [attr.x2]="chartW" [attr.y2]="chartH-20-((pct/100)*(chartH-20))"
+                stroke="#f3f4f6" stroke-width="1"/>
+          <ng-container *ngFor="let bar of svgBars()">
+            <rect *ngIf="bar.d.success>0"  [attr.x]="bar.x" [attr.y]="chartH-20-bar.sucH" [attr.width]="bar.bw" [attr.height]="bar.sucH" fill="#16a34a" rx="2"/>
+            <rect *ngIf="bar.d.failed>0"   [attr.x]="bar.x" [attr.y]="chartH-20-bar.sucH-bar.failH" [attr.width]="bar.bw" [attr.height]="bar.failH" fill="#dc2626" rx="2"/>
+            <rect *ngIf="bar.d.security>0" [attr.x]="bar.x" [attr.y]="chartH-20-bar.sucH-bar.failH-bar.secH" [attr.width]="bar.bw" [attr.height]="bar.secH" fill="#d97706" rx="2"/>
+            <text [attr.x]="bar.x+bar.bw/2" [attr.y]="chartH+14" text-anchor="middle" font-size="9" fill="#9ca3af">{{ bar.d.label }}</text>
+          </ng-container>
+          <line [attr.x1]="0" [attr.y1]="chartH-20" [attr.x2]="chartW" [attr.y2]="chartH-20" stroke="#e5e7eb" stroke-width="1"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- ══ ROW 4 — PIPELINES TABLE ════════════════════════════════ -->
+    <div class="section-card">
+      <div class="section-header">
+        <h3>Pipelines</h3>
+        <div class="tab-group">
+          <button class="tab-btn" [class.active]="projectTab()==='deployment'" (click)="setProjectTab('deployment')">🚀 Déploiements</button>
+          <button class="tab-btn" [class.active]="projectTab()==='pipelines'"  (click)="setProjectTab('pipelines')">⚡ Pipelines</button>
+        </div>
+        <span class="pipes-count">✔ {{ kpis().pipelines }} exécution(s)</span>
+        <a routerLink="/projects" class="panel-link">Voir tout →</a>
+      </div>
+
+      <div *ngIf="projectTab()==='deployment'">
+        <div class="deploy-grid" *ngIf="deployEvents().length; else noItems">
+          <div class="deploy-card" *ngFor="let n of deployEvents()">
+            <div class="deploy-status" [class.dep-success]="n.eventType==='PIPELINE_SUCCESS'" [class.dep-fail]="n.eventType!=='PIPELINE_SUCCESS'">
+              {{ n.eventType==='PIPELINE_SUCCESS' ? '✓' : '✕' }}
+            </div>
+            <div class="deploy-info">
+              <div class="deploy-project">Projet #{{ n.projectId || '—' }}</div>
+              <div class="deploy-msg">{{ n.message | slice:0:55 }}{{ n.message.length > 55 ? '…' : '' }}</div>
+              <div class="deploy-meta">
+                <span class="deploy-branch">{{ n.projectId ? 'proj-'+n.projectId : 'main' }}</span>
+                <span class="deploy-time">{{ timeAgo(n.createdAt) }}</span>
+              </div>
+            </div>
+            <span class="deploy-badge" [class.badge-success]="n.eventType==='PIPELINE_SUCCESS'" [class.badge-fail]="n.eventType!=='PIPELINE_SUCCESS'">
+              {{ n.eventType==='PIPELINE_SUCCESS' ? 'RÉUSSI' : 'ÉCHOUÉ' }}
+            </span>
+          </div>
+        </div>
+        <ng-template #noItems><div class="empty-panel"><p>Aucun déploiement récent</p></div></ng-template>
+      </div>
+
+      <div *ngIf="projectTab()==='pipelines'">
+        <div class="table-wrap" *ngIf="executions().length; else noPipes">
+          <table class="data-table">
+            <thead><tr><th>NOM DU PROJET</th><th>DATE DE DÉBUT</th><th>DATE DE FIN</th><th>STATUT</th><th>DÉCLENCHÉ PAR</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let e of executions().slice(0,20)">
+                <td><strong>{{ pipelineName(e.pipelineId) }}</strong></td>
+                <td class="muted">{{ e.startTime | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+                <td class="muted">{{ e.endTime ? (e.endTime | date:'dd/MM/yyyy HH:mm:ss') : 'N/A' }}</td>
+                <td><span class="status-pill" [ngClass]="pipelineStatusClass(e.status)">{{ e.status }}</span></td>
+                <td class="muted">{{ e.triggeredBy || auth.username }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ng-template #noPipes><div class="empty-panel"><p>Aucun pipeline</p><a routerLink="/pipelines" class="btn-sm">Gérer →</a></div></ng-template>
+      </div>
+    </div>
+
+    <!-- ══ ROW 5 — NOTIFICATIONS + ALERTES SÉCURITÉ ══════════════ -->
+    <div class="two-col-row">
+
+      <!-- Notifications -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Notifications</h3>
+          <a routerLink="/notifications" class="panel-link">Voir tout →</a>
+        </div>
+        <div class="feed-list">
+          <div class="feed-item" *ngFor="let n of recentNotifs()"
+               [class.feed-success]="n.eventType==='PIPELINE_SUCCESS'"
+               [class.feed-failed]="n.eventType==='PIPELINE_FAILED' || n.eventType==='DEPLOYMENT_FAILED'"
+               [class.feed-security]="n.eventType.startsWith('SECURITY')">
+            <span class="feed-icon">{{ eventIcon(n.eventType) }}</span>
+            <div class="feed-body">
+              <div class="feed-type">{{ eventLabel(n.eventType) }}</div>
+              <div class="feed-msg">{{ n.message | slice:0:52 }}{{ n.message.length>52?'…':'' }}</div>
+            </div>
+            <span class="feed-time">{{ timeAgo(n.createdAt) }}</span>
+          </div>
+          <div class="empty-panel" *ngIf="!recentNotifs().length"><p>Aucune notification</p></div>
+        </div>
+      </div>
+
+      <!-- Alertes sécurité with refresh -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Alertes sécurité</h3>
+          <button class="btn-refresh-sm" (click)="loadAll(false)">refresh</button>
+          <a routerLink="/security" class="panel-link">Voir tout →</a>
+        </div>
+        <div class="sec-error-count" *ngIf="securityAlerts().length">
+          <span class="sec-err-badge">error</span>
+          <span class="sec-err-text">{{ securityAlerts().length }} scan(s) en échec</span>
+        </div>
+        <div class="sec-score-bar">
+          <div class="sec-score-label">
+            <span>Score global</span>
+            <strong [class.score-good]="securityScore()>=70" [class.score-bad]="securityScore()<50">{{ securityScore() }}%</strong>
+          </div>
+          <div class="sec-bar-track">
+            <div class="sec-bar-fill" [style.width.%]="securityScore()" [class.fill-good]="securityScore()>=70" [class.fill-med]="securityScore()>=50&&securityScore()<70" [class.fill-bad]="securityScore()<50"></div>
+          </div>
+        </div>
+        <div class="feed-list" style="margin-top:12px">
+          <div class="feed-item feed-security" *ngFor="let n of securityAlerts()">
+            <div class="sec-alert-row">
+              <div class="sec-alert-top">
+                <span class="sec-alert-proj">{{ n.message | slice:0:30 }}{{ n.message.length>30?'…':'' }}</span>
+                <span class="sec-alert-time">{{ timeAgo(n.createdAt) }}</span>
+              </div>
+              <div class="sec-alert-tags">
+                <span class="sec-tag sec-tag-type">{{ isSecurityBlocked(n.eventType) ? 'OWASP_DEPENDENCY_CHECK' : 'SONARQUBE' }}</span>
+                <span class="sec-tag" [class.sec-tag-critical]="isSecurityBlocked(n.eventType)" [class.sec-tag-medium]="isSecurityWarning(n.eventType)">
+                  {{ isSecurityBlocked(n.eventType) ? 'CRITICAL' : 'MEDIUM' }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="empty-panel" *ngIf="!securityAlerts().length">
+            <p style="color:#16a34a">✓ Aucune alerte sécurité</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ══ ROW 6 — AUDIT LOGS ══════════════════════════════════════ -->
+    <div class="section-card">
+      <div class="section-header">
+        <h3>Logs d'audit</h3>
+        <a routerLink="/audit-logs" class="panel-link">Voir tout →</a>
+      </div>
+      <div class="table-wrap" *ngIf="recentLogs().length; else noLogs">
+        <table class="data-table">
+          <thead><tr><th>Heure</th><th>Utilisateur</th><th>Action</th><th>Ressource</th><th>Service</th><th>Statut</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let l of recentLogs()">
+              <td class="muted mono">{{ l.timestamp | date:'HH:mm:ss' }}</td>
+              <td>{{ l.username || '—' }}</td>
+              <td class="log-action">{{ l.action }}</td>
+              <td class="muted">{{ l.resource || '—' }}</td>
+              <td class="muted">{{ l.sourceService || '—' }}</td>
+              <td><span class="log-status" [ngClass]="logStatusClass(l.status)">{{ l.status }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ng-template #noLogs><div class="empty-panel"><p>Aucun log récent</p></div></ng-template>
+    </div>
+
+  </ng-container>
+</div>

@@ -1,0 +1,109 @@
+:host {
+  --navy: #0a1628;
+  --navy-2: #0f2040;
+  --accent: #1d9e75;
+  --accent-2: #0e7a5c;
+  --text-dark: #1a1f2e;
+  --text-mid: #64748b;
+  --border: #e2e8f0;
+}
+
+/* SAME LAYOUT AS LOGIN */
+.auth-shell {
+  display: flex;
+  min-height: 100vh;
+  background: #f6f8fb;
+}
+
+/* LEFT */
+.brand-panel {
+  flex: 1;
+  background: linear-gradient(135deg, var(--navy), var(--navy-2));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+}
+
+/* RIGHT */
+.form-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* CARD */
+.form-inner {
+  width: 100%;
+  max-width: 460px;
+  background: white;
+  padding: 32px;
+  border-radius: 16px;
+  box-shadow: 0 25px 70px rgba(0,0,0,0.08);
+}
+
+/* HEADER */
+.form-header h2 {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+/* ROW */
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* INPUT */
+input, select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  outline: none;
+  font-size: 0.9rem;
+}
+
+input:focus, select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(29,158,117,0.1);
+}
+
+/* ERROR */
+.alert-error {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+/* BUTTON */
+.btn-submit {
+  width: 100%;
+  padding: 14px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .auth-shell {
+    flex-direction: column;
+  }
+
+  .brand-panel {
+    display: none;
+  }
+
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+}

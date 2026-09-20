@@ -1,0 +1,400 @@
+<div class="monitoring-page">
+
+  <!-- ── Header ── -->
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Monitoring Système</h2>
+      <span class="refresh-badge">Actualisé {{ lastRefresh() | date:'HH:mm:ss' }} · 20s</span>
+    </div>
+    <div class="header-actions">
+      <a [href]="grafanaUrl"    target="_blank" class="btn-tool btn-grafana">📊 Grafana</a>
+      <a [href]="prometheusUrl" target="_blank" class="btn-tool btn-prom">🔥 Prometheus</a>
+      <button class="btn-tool" (click)="loadAll()">↻ Actualiser</button>
+    </div>
+  </div>
+
+  <div class="loading-row" *ngIf="loading()">
+    <div class="spinner"></div><p>Chargement des métriques…</p>
+  </div>
+
+  <ng-container *ngIf="!loading()">
+
+    <!-- ══ ROW 1 — KPI CARDS with sparklines ════════════════════════ -->
+    <div class="kpi-grid">
+
+      <!-- Services health -->
+      <div class="kpi-card" [class.kpi-danger]="healthPercent() < 80">
+        <div class="kpi-icon ic-services">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ servicesHealthy() }}<span class="kpi-denom">/{{ servicesTotal() }}</span></div>
+          <div class="kpi-label">Services actifs</div>
+          <div class="kpi-sub" [class.good]="healthPercent()===100" [class.warn]="healthPercent()<100">
+            {{ healthPercent() }}% opérationnel
+          </div>
+        </div>
+      </div>
+
+      <!-- Total RPS with sparkline -->
+      <div class="kpi-card">
+        <div class="kpi-icon ic-rps">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ fmt(totalRps(), 2) }}</div>
+          <div class="kpi-label">Req/sec total</div>
+          <div class="kpi-sub">{{ sortedByRps().length }} services actifs</div>
+        </div>
+        <div class="kpi-sparkline" *ngIf="rpsSparkline">
+          <svg viewBox="0 0 100 40" preserveAspectRatio="none">
+            <polyline [attr.points]="rpsSparkline" fill="none" stroke="#3b82f6" stroke-width="1.5"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Avg CPU with sparkline -->
+      <div class="kpi-card" [class.kpi-warn]="avgCpu() > 0.5">
+        <div class="kpi-icon ic-cpu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="4" y="4" width="16" height="16" rx="2"/>
+            <rect x="9" y="9" width="6" height="6"/>
+          </svg>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ fmt(avgCpu() * 100) }}<span class="kpi-denom">%</span></div>
+          <div class="kpi-label">CPU moyen</div>
+          <div class="kpi-sub" [class.warn]="avgCpu()>0.5" [class.good]="avgCpu()<=0.3">
+            {{ avgCpu() > 0.7 ? 'Élevé ⚠' : avgCpu() > 0.5 ? 'Modéré' : 'Normal ✓' }}
+          </div>
+        </div>
+        <div class="kpi-sparkline" *ngIf="cpuSparkline">
+          <svg viewBox="0 0 100 40" preserveAspectRatio="none">
+            <polyline [attr.points]="cpuSparkline" fill="none"
+                      [attr.stroke]="avgCpu()>0.5?'#d97706':'#06b6d4'" stroke-width="1.5"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Avg memory -->
+      <div class="kpi-card">
+        <div class="kpi-icon ic-mem">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+          </svg>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ fmt(avgMem(), 0) }}<span class="kpi-denom">MB</span></div>
+          <div class="kpi-label">Heap moyen</div>
+          <div class="kpi-sub">{{ sortedByMem().length }} services mesurés</div>
+        </div>
+      </div>
+
+      <!-- Pipeline success rate -->
+      <div class="kpi-card">
+        <div class="kpi-icon ic-pipeline">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ successRate() }}<span class="kpi-denom">%</span></div>
+          <div class="kpi-label">Succès pipeline</div>
+          <div class="kpi-sub">✓ {{ successCount() }} · ✕ {{ failedCount() }}</div>
+        </div>
+      </div>
+
+      <!-- Prometheus status -->
+      <div class="kpi-card" [class.kpi-danger]="promError()">
+        <div class="kpi-icon" [class.ic-prom]="!promError()" [class.ic-error]="promError()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-value" [class.text-red]="promError()">{{ promError() ? 'OFF' : 'ON' }}</div>
+          <div class="kpi-label">Prometheus</div>
+          <div class="kpi-sub" [class.good]="!promError()" [class.bad]="promError()">
+            {{ promError() ? 'Non disponible' : 'Scraping 15s ✓' }}
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ══ ROW 2 — SERVICE HEALTH ════════════════════════════════════ -->
+    <div class="section-card">
+      <div class="section-header">
+        <h3 class="section-title">État des microservices</h3>
+        <span class="section-badge">up{{ '{' }}{{ '}' }} · Prometheus</span>
+      </div>
+
+      <ng-container *ngIf="snapshot()?.services?.length; else noPromServices">
+        <div class="services-grid">
+          <div class="service-row" *ngFor="let svc of snapshot()!.services">
+            <div class="svc-dot" [class.dot-up]="svc.up" [class.dot-down]="!svc.up"></div>
+            <div class="svc-name">{{ svcLabel(svc.name) }}</div>
+            <div class="svc-badge" [class.badge-up]="svc.up" [class.badge-down]="!svc.up">
+              {{ svc.up ? 'UP' : 'DOWN' }}
+            </div>
+            <div class="svc-chips">
+              <span class="chip">CPU: {{ cpuPct(svc.name) }}</span>
+              <span class="chip">Heap: {{ memMB(svc.name) }} MB</span>
+              <span class="chip">Rép: {{ respMs(svc.name) }} ms</span>
+              <span class="chip">Thr: {{ threadCount(svc.name) }}</span>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <ng-template #noPromServices>
+        <div class="prom-notice">Prometheus non disponible — liste des services déployés</div>
+        <div class="services-grid">
+          <div class="service-row" *ngFor="let svc of knownServices">
+            <div class="svc-dot dot-unknown"></div>
+            <div class="svc-name">{{ svcLabel(svc) }}</div>
+            <div class="svc-badge badge-unknown">INCONNU</div>
+            <div class="svc-chips"><span class="chip chip-muted">Prometheus requis</span></div>
+          </div>
+        </div>
+      </ng-template>
+    </div>
+
+    <!-- ══ ROW 3 — HTTP RPS + RESPONSE TIME ════════════════════════ -->
+    <div class="two-col">
+
+      <div class="section-card">
+        <div class="section-header">
+          <h3 class="section-title">Requêtes HTTP / sec</h3>
+          <span class="section-badge">rate[5m]</span>
+        </div>
+        <div class="bar-chart" *ngIf="sortedByRps().length; else noData">
+          <div class="bar-row" *ngFor="let p of sortedByRps()">
+            <div class="bar-label">{{ svcLabel(p.service) }}</div>
+            <div class="bar-track">
+              <div class="bar-fill fill-blue" [style.width.%]="rpsBar(p.value)"></div>
+            </div>
+            <div class="bar-value">{{ fmt(p.value, 2) }} rps</div>
+          </div>
+        </div>
+        <ng-template #noData><div class="no-data">Prometheus indisponible</div></ng-template>
+        <!-- Sparkline for total RPS history -->
+        <div class="sparkline-section" *ngIf="rpsSparkline">
+          <div class="spark-label">Historique RPS (dernières mesures)</div>
+          <svg viewBox="0 0 100 40" width="100%" height="40" preserveAspectRatio="none" class="spark-svg">
+            <polyline [attr.points]="rpsSparkline" fill="none" stroke="#3b82f6" stroke-width="1.5"/>
+            <polyline [attr.points]="rpsSparkline + ' 100,40 0,40'"
+                      fill="rgba(59,130,246,0.1)" stroke="none"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-header">
+          <h3 class="section-title">Temps de réponse moyen</h3>
+          <span class="section-badge">ms</span>
+        </div>
+        <div class="resp-list" *ngIf="snapshot()?.avgResponseMs?.length; else noData2">
+          <div class="resp-row" *ngFor="let p of snapshot()!.avgResponseMs">
+            <div class="resp-label">{{ svcLabel(p.service) }}</div>
+            <div class="resp-bar-wrap">
+              <div class="resp-bar"
+                   [style.width.%]="p.value >= 500 ? 100 : p.value/5"
+                   [class.resp-good]="p.value < 200"
+                   [class.resp-warn]="p.value >= 200 && p.value < 500"
+                   [class.resp-bad]="p.value >= 500"></div>
+            </div>
+            <div class="resp-pill"
+                 [class.pill-good]="p.value < 200"
+                 [class.pill-warn]="p.value >= 200 && p.value < 500"
+                 [class.pill-bad]="p.value >= 500">
+              {{ fmt(p.value) }} ms
+            </div>
+          </div>
+        </div>
+        <ng-template #noData2><div class="no-data">Prometheus indisponible</div></ng-template>
+      </div>
+
+    </div>
+
+    <!-- ══ ROW 4 — JVM MEMORY + CPU ════════════════════════════════ -->
+    <div class="two-col">
+
+      <div class="section-card">
+        <div class="section-header">
+          <h3 class="section-title">JVM Heap utilisé</h3>
+          <span class="section-badge">MB · heap</span>
+        </div>
+        <div class="bar-chart" *ngIf="sortedByMem().length; else noData3">
+          <div class="bar-row" *ngFor="let p of sortedByMem()">
+            <div class="bar-label">{{ svcLabel(p.service) }}</div>
+            <div class="bar-track">
+              <div class="bar-fill"
+                   [class.fill-purple]="p.value <= 300"
+                   [class.fill-orange]="p.value > 300 && p.value <= 450"
+                   [class.fill-red]="p.value > 450"
+                   [style.width.%]="memBar(p.value)"></div>
+            </div>
+            <div class="bar-value">{{ fmt(p.value, 0) }} MB</div>
+          </div>
+        </div>
+        <ng-template #noData3><div class="no-data">Prometheus indisponible</div></ng-template>
+      </div>
+
+      <div class="section-card">
+        <div class="section-header">
+          <h3 class="section-title">CPU &amp; Threads JVM</h3>
+          <span class="section-badge">process_cpu_usage</span>
+        </div>
+        <div class="cpu-list" *ngIf="snapshot()?.cpuUsage?.length; else noData4">
+          <div class="cpu-row" *ngFor="let p of snapshot()!.cpuUsage">
+            <div class="cpu-name">{{ svcLabel(p.service) }}</div>
+            <div class="cpu-track">
+              <div class="cpu-bar"
+                   [style.width.%]="p.value * 100"
+                   [class.fill-blue]="p.value <= 0.3"
+                   [class.fill-orange]="p.value > 0.3 && p.value <= 0.7"
+                   [class.fill-red]="p.value > 0.7"></div>
+            </div>
+            <div class="cpu-pct">{{ fmt(p.value * 100) }}%</div>
+            <div class="thread-cnt">{{ threadCount(p.service) }} thr</div>
+          </div>
+        </div>
+        <!-- CPU sparkline -->
+        <div class="sparkline-section" *ngIf="cpuSparkline">
+          <div class="spark-label">Historique CPU moyen</div>
+          <svg viewBox="0 0 100 40" width="100%" height="36" preserveAspectRatio="none" class="spark-svg">
+            <polyline [attr.points]="cpuSparkline" fill="none"
+                      [attr.stroke]="avgCpu()>0.5?'#d97706':'#06b6d4'" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <ng-template #noData4><div class="no-data">Prometheus indisponible</div></ng-template>
+      </div>
+
+    </div>
+
+    <!-- ══ ROW 5 — BUSINESS STATS ════════════════════════════════════ -->
+    <div class="section-card">
+      <div class="section-header">
+        <h3 class="section-title">Statistiques métier — Backend API</h3>
+        <span class="section-badge">Actualisation 20s</span>
+      </div>
+      <div class="biz-grid">
+        <div class="biz-stat">
+          <div class="biz-icon biz-success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+          <div class="biz-val">{{ successCount() }}</div>
+          <div class="biz-label">Pipelines réussis</div>
+        </div>
+        <div class="biz-stat">
+          <div class="biz-icon biz-failed">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </div>
+          <div class="biz-val">{{ failedCount() }}</div>
+          <div class="biz-label">Pipelines échoués</div>
+        </div>
+        <div class="biz-stat">
+          <div class="biz-icon biz-blocked">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div class="biz-val">{{ blockedCount() }}</div>
+          <div class="biz-label">Bloqués sécurité</div>
+        </div>
+        <div class="biz-stat">
+          <div class="biz-icon biz-rate">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+            </svg>
+          </div>
+          <div class="biz-val">{{ successRate() }}<span class="biz-unit">%</span></div>
+          <div class="biz-label">Taux de succès</div>
+        </div>
+        <div class="biz-stat">
+          <div class="biz-icon biz-projects">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <div class="biz-val">{{ totalProjects() }}</div>
+          <div class="biz-label">Projets actifs</div>
+        </div>
+        <div class="biz-stat">
+          <div class="biz-icon" [class.biz-health-ok]="healthPercent()===100" [class.biz-health-warn]="healthPercent()<100">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </div>
+          <div class="biz-val">{{ healthPercent() }}<span class="biz-unit">%</span></div>
+          <div class="biz-label">Disponibilité</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ROW 6 — QUICK LINKS ════════════════════════════════════════ -->
+    <div class="section-card">
+      <div class="section-header"><h3 class="section-title">Accès rapide aux outils</h3></div>
+      <div class="links-grid">
+        <a [href]="grafanaUrl" target="_blank" class="tool-link tl-grafana">
+          <span class="tl-icon">📊</span>
+          <div class="tl-info">
+            <div class="tl-name">Grafana</div>
+            <div class="tl-url">:32000 · admin/Admin2024{{ '!' }}</div>
+          </div>
+        </a>
+        <a [href]="prometheusUrl" target="_blank" class="tool-link tl-prom">
+          <span class="tl-icon">🔥</span>
+          <div class="tl-info">
+            <div class="tl-name">Prometheus</div>
+            <div class="tl-url">:32090 · scraping 15s</div>
+          </div>
+        </a>
+        <a href="http://192.168.56.10:9000" target="_blank" class="tool-link tl-sonar">
+          <span class="tl-icon">🔍</span>
+          <div class="tl-info">
+            <div class="tl-name">SonarQube</div>
+            <div class="tl-url">VM1:9000</div>
+          </div>
+        </a>
+        <a href="http://192.168.56.10:8080" target="_blank" class="tool-link tl-jenkins">
+          <span class="tl-icon">⚙️</span>
+          <div class="tl-info">
+            <div class="tl-name">Jenkins</div>
+            <div class="tl-url">VM1:8080</div>
+          </div>
+        </a>
+        <a href="http://192.168.56.20:30061" target="_blank" class="tool-link tl-eureka">
+          <span class="tl-icon">🌐</span>
+          <div class="tl-info">
+            <div class="tl-name">Eureka</div>
+            <div class="tl-url">:30061</div>
+          </div>
+        </a>
+        <a href="http://192.168.56.10:8081" target="_blank" class="tool-link tl-nexus">
+          <span class="tl-icon">📦</span>
+          <div class="tl-info">
+            <div class="tl-name">Nexus</div>
+            <div class="tl-url">VM1:8081</div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+  </ng-container>
+</div>

@@ -1,0 +1,49 @@
+# ============================================================
+#  STB DevSecOps — Kubernetes Namespaces
+#  One namespace per environment + shared infra / monitoring
+# ============================================================
+
+# ── Shared infrastructure (Eureka, Gateway, MySQL) ──────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: infra
+  labels:
+    env: shared
+    team: platform
+---
+# ── Shared monitoring (Prometheus, Grafana) ──────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    env: shared
+    team: platform
+---
+# ── Development environment ───────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev
+  labels:
+    env: dev
+    team: backend
+---
+# ── Staging / pre-production environment ─────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: staging
+  labels:
+    env: staging
+    team: backend
+---
+# ── Production environment ────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prod
+  labels:
+    env: prod
+    team: backend

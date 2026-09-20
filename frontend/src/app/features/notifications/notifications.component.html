@@ -1,0 +1,95 @@
+<div class="page">
+ 
+  <div class="page-header">
+    <div>
+      <h1>Notifications</h1>
+      <p>{{ counts().all }} notification{{ counts().all !== 1 ? 's' : '' }}
+         <span *ngIf="counts().failed > 0" class="err-count">
+           &mdash; {{ counts().failed }} échec{{ counts().failed !== 1 ? 's' : '' }}
+         </span>
+      </p>
+    </div>
+    <button class="btn-refresh" (click)="load()" title="Rafraîchir">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.5">
+        <polyline points="23 4 23 10 17 10"/>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+      </svg>
+    </button>
+  </div>
+ 
+  <!-- Filters -->
+  <div class="filter-bar">
+    <button
+      *ngFor="let f of filters"
+      class="filter-btn"
+      [class.active]="filter() === f.key"
+      (click)="setFilter(f.key)"
+    >
+      {{ f.label }}
+      <span class="filter-count" *ngIf="f.key === 'ALL'">{{ counts().all }}</span>
+      <span class="filter-count red" *ngIf="f.key === 'FAILED' && counts().failed > 0">{{ counts().failed }}</span>
+    </button>
+  </div>
+ 
+  <!-- Loading -->
+  <div *ngIf="loading()" class="loading-state">
+    <div class="spinner"></div>
+    Chargement...
+  </div>
+ 
+  <!-- List -->
+  <div *ngIf="!loading()" class="notif-list">
+ 
+    <div *ngFor="let n of filtered()" class="notif-card"
+         [class.sent]="n.status === 'SENT'"
+         [class.failed]="n.status === 'FAILED'"
+         [class.pending]="n.status === 'PENDING'">
+ 
+      <!-- Left: icon -->
+      <div class="notif-icon" [ngClass]="iconColorClass(n.eventType)">
+        {{ iconFor(n.eventType) }}
+      </div>
+ 
+      <!-- Center: content -->
+      <div class="notif-body">
+        <div class="notif-type">{{ n.eventType }}</div>
+        <div class="notif-recip">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+          {{ n.recipient }}
+        </div>
+        <div class="notif-msg">
+          {{ n.message | slice:0:120 }}{{ n.message && n.message.length > 120 ? '…' : '' }}
+        </div>
+      </div>
+ 
+      <!-- Right: meta -->
+      <div class="notif-meta">
+        <span class="channel-badge" [class.slack]="n.channel === 'SLACK'">
+          {{ n.channel }}
+        </span>
+        <span class="status-badge" [ngClass]="n.status.toLowerCase()">
+          {{ n.status }}
+        </span>
+        <div class="notif-dates">
+          <span>{{ n.createdAt | date:'dd/MM HH:mm' }}</span>
+          <span *ngIf="n.sentAt" class="sent-at">Envoyé {{ n.sentAt | date:'HH:mm' }}</span>
+        </div>
+      </div>
+ 
+    </div>
+ 
+    <div *ngIf="filtered().length === 0" class="empty-state">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ddd" stroke-width="1.5">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+      <p>Aucune notification pour ce filtre</p>
+    </div>
+ 
+  </div>
+</div>

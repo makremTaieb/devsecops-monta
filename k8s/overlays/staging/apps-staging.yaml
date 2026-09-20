@@ -1,0 +1,379 @@
+# ============================================================
+#  STAGING overlay — namespace: staging
+#  • versioned image tags  (e.g. :1.2.3)  set by Jenkinsfile
+#  • 2 replicas per service (availability testing)
+#  • INFO log level
+#  • same infra as dev (shared MySQL / Eureka / Gateway)
+# ============================================================
+
+# ── Auth Service ─────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: staging
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: auth-service }
+  template:
+    metadata:
+      labels: { app: auth-service, env: staging }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+        - name: auth-service
+          image: 192.168.56.10:5000/auth-service:staging
+          imagePullPolicy: Always
+          ports: [{ containerPort: 8081 }]
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "staging"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql.infra.svc.cluster.local:3306/authdb_staging?createDatabaseIfNotExist=true&useSSL=true&serverTimezone=UTC"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: { secretKeyRef: { name: db-secret, key: DB_USERNAME } }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-secret, key: DB_PASSWORD } }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: jwt-secret, key: JWT_SECRET } }
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              value: http://eureka-server.infra.svc.cluster.local:8761/eureka/
+            - name: LOGGING_LEVEL_ROOT
+              value: "INFO"
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xms128m -Xmx384m -XX:+ExitOnOutOfMemoryError"
+            - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+              value: "health,info,prometheus"
+          resources:
+            requests: { memory: "192Mi", cpu: "150m" }
+            limits:   { memory: "384Mi", cpu: "300m" }
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 8081 }
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: 8081 }
+            initialDelaySeconds: 120
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: 8081 }
+            initialDelaySeconds: 150
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: staging
+spec:
+  type: ClusterIP
+  selector: { app: auth-service }
+  ports: [{ port: 8081, targetPort: 8081 }]
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pipeline-service
+  namespace: staging
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: pipeline-service }
+  template:
+    metadata:
+      labels: { app: pipeline-service, env: staging }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8082"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+        - name: pipeline-service
+          image: 192.168.56.10:5000/pipeline-service:staging
+          imagePullPolicy: Always
+          ports: [{ containerPort: 8082 }]
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "staging"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql.infra.svc.cluster.local:3306/pipelinedb_staging?createDatabaseIfNotExist=true&useSSL=true&serverTimezone=UTC"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: { secretKeyRef: { name: db-secret, key: DB_USERNAME } }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-secret, key: DB_PASSWORD } }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: jwt-secret, key: JWT_SECRET } }
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              value: http://eureka-server.infra.svc.cluster.local:8761/eureka/
+            - name: JENKINS_URL
+              value: http://192.168.56.10:8080
+            - name: JENKINS_USERNAME
+              value: admin
+            - name: JENKINS_TOKEN
+              value: "1191735d78e67c11b3cbe11fba44d16f5f"
+            - name: LOGGING_LEVEL_ROOT
+              value: "INFO"
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xms128m -Xmx384m -XX:+ExitOnOutOfMemoryError"
+          resources:
+            requests: { memory: "192Mi", cpu: "150m" }
+            limits:   { memory: "384Mi", cpu: "300m" }
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 8082 }
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: 8082 }
+            initialDelaySeconds: 120
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: 8082 }
+            initialDelaySeconds: 150
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pipeline-service
+  namespace: staging
+spec:
+  type: ClusterIP
+  selector: { app: pipeline-service }
+  ports: [{ port: 8082, targetPort: 8082 }]
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: security-service
+  namespace: staging
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: security-service }
+  template:
+    metadata:
+      labels: { app: security-service, env: staging }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8083"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+        - name: security-service
+          image: 192.168.56.10:5000/security-service:staging
+          imagePullPolicy: Always
+          ports: [{ containerPort: 8083 }]
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "staging"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql.infra.svc.cluster.local:3306/securitydb_staging?createDatabaseIfNotExist=true&useSSL=true&serverTimezone=UTC"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: { secretKeyRef: { name: db-secret, key: DB_USERNAME } }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-secret, key: DB_PASSWORD } }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: jwt-secret, key: JWT_SECRET } }
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              value: http://eureka-server.infra.svc.cluster.local:8761/eureka/
+            - name: LOGGING_LEVEL_ROOT
+              value: "INFO"
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xms128m -Xmx384m -XX:+ExitOnOutOfMemoryError"
+          resources:
+            requests: { memory: "192Mi", cpu: "150m" }
+            limits:   { memory: "384Mi", cpu: "300m" }
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 8083 }
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: 8083 }
+            initialDelaySeconds: 120
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: 8083 }
+            initialDelaySeconds: 150
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: security-service
+  namespace: staging
+spec:
+  type: ClusterIP
+  selector: { app: security-service }
+  ports: [{ port: 8083, targetPort: 8083 }]
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: staging
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: notification-service }
+  template:
+    metadata:
+      labels: { app: notification-service, env: staging }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8085"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+        - name: notification-service
+          image: 192.168.56.10:5000/notification-service:staging
+          imagePullPolicy: Always
+          ports: [{ containerPort: 8085 }]
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "staging"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql.infra.svc.cluster.local:3306/notifdb_staging?createDatabaseIfNotExist=true&useSSL=true&serverTimezone=UTC"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: { secretKeyRef: { name: db-secret, key: DB_USERNAME } }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-secret, key: DB_PASSWORD } }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: jwt-secret, key: JWT_SECRET } }
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              value: http://eureka-server.infra.svc.cluster.local:8761/eureka/
+            - name: LOGGING_LEVEL_ROOT
+              value: "INFO"
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xms128m -Xmx384m -XX:+ExitOnOutOfMemoryError"
+          resources:
+            requests: { memory: "192Mi", cpu: "150m" }
+            limits:   { memory: "384Mi", cpu: "300m" }
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 8085 }
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: 8085 }
+            initialDelaySeconds: 120
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: 8085 }
+            initialDelaySeconds: 150
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: staging
+spec:
+  type: ClusterIP
+  selector: { app: notification-service }
+  ports: [{ port: 8085, targetPort: 8085 }]
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audit-log-service
+  namespace: staging
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: audit-log-service }
+  template:
+    metadata:
+      labels: { app: audit-log-service, env: staging }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8086"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+        - name: audit-log-service
+          image: 192.168.56.10:5000/audit-log-service:staging
+          imagePullPolicy: Always
+          ports: [{ containerPort: 8086 }]
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "staging"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql.infra.svc.cluster.local:3306/auditdb_staging?createDatabaseIfNotExist=true&useSSL=true&serverTimezone=UTC"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: { secretKeyRef: { name: db-secret, key: DB_USERNAME } }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-secret, key: DB_PASSWORD } }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: jwt-secret, key: JWT_SECRET } }
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              value: http://eureka-server.infra.svc.cluster.local:8761/eureka/
+            - name: LOGGING_LEVEL_ROOT
+              value: "INFO"
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xms128m -Xmx384m -XX:+ExitOnOutOfMemoryError"
+          resources:
+            requests: { memory: "192Mi", cpu: "150m" }
+            limits:   { memory: "384Mi", cpu: "300m" }
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 8086 }
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: 8086 }
+            initialDelaySeconds: 120
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: 8086 }
+            initialDelaySeconds: 150
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: audit-log-service
+  namespace: staging
+spec:
+  type: ClusterIP
+  selector: { app: audit-log-service }
+  ports: [{ port: 8086, targetPort: 8086 }]
+
+---
+# ── Frontend ─────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: staging
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: frontend }
+  template:
+    metadata:
+      labels: { app: frontend, env: staging }
+    spec:
+      containers:
+        - name: frontend
+          image: 192.168.56.10:5000/frontend:staging
+          imagePullPolicy: Always
+          ports: [{ containerPort: 80 }]
+          resources:
+            requests: { memory: "64Mi",  cpu: "50m" }
+            limits:   { memory: "128Mi", cpu: "100m" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: staging
+spec:
+  type: ClusterIP
+  selector: { app: frontend }
+  ports: [{ port: 80, targetPort: 80 }]

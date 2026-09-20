@@ -1,0 +1,27 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example</groupId>
+    <artifactId>PFE-2026</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+
+    <!-- VERY IMPORTANT -->
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>Auth-Service</module>
+        <module>Pipeline-Service</module>
+        <module>SECURITY-SERVICE</module>
+        <module>Eureka-Server</module>
+        <module>Gateway</module>
+        <module>Audit-Log-Service</module>
+        <module>Notification-Service</module>
+
+
+    </modules>
+
+</project>

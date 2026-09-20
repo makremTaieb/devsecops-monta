@@ -1,0 +1,32 @@
+package com.example.auditlogservice.entities;
+
+public enum ActionType {
+    // Auth
+    USER_LOGIN,
+    USER_LOGOUT,
+    USER_REGISTER,
+    USER_REFRESH_TOKEN,
+    USER_DELETED,
+    USER_UPDATED,
+    USER_ROLE_CHANGED,
+
+    // Pipeline
+    PIPELINE_CREATED,
+    PIPELINE_UPDATED,
+    PIPELINE_DELETED,
+    PIPELINE_TRIGGERED,
+    PIPELINE_ABORTED,
+
+    // Project
+    PROJECT_CREATED,
+    PROJECT_UPDATED,
+    PROJECT_DELETED,
+
+    // Security
+    SECURITY_SCAN_TRIGGERED,
+    SECURITY_SCAN_COMPLETED,
+    SECURITY_SCAN_BLOCKED,
+
+    // System
+    SYSTEM_EVENT
+}

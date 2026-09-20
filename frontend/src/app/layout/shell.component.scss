@@ -1,0 +1,355 @@
+:host {
+  display: block;
+  height: 100vh;
+}
+ 
+// ── Variables ─────────────────────────────────────────────────────
+$sidebar-w:   240px;
+$sidebar-w-c: 64px;  // collapsed
+$bg-dark:     #0d1117;
+$bg-dark-2:   #161b22;
+$accent:      #1d9e75;
+$accent-2:    #16a085;
+$text-muted:  rgba(255, 255, 255, 0.45);
+$text-sub:    rgba(255, 255, 255, 0.25);
+$border:      rgba(255, 255, 255, 0.07);
+$transition:  all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+ 
+// ── Shell wrapper ─────────────────────────────────────────────────
+.shell {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: #f4f6f8;
+}
+ 
+// ── Sidebar ───────────────────────────────────────────────────────
+.sidebar {
+  width: $sidebar-w;
+  min-width: $sidebar-w;
+  background: $bg-dark;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: $transition;
+  border-right: 1px solid $border;
+  overflow: hidden;
+}
+ 
+.shell.collapsed .sidebar {
+  width: $sidebar-w-c;
+  min-width: $sidebar-w-c;
+}
+ 
+// ── Brand ─────────────────────────────────────────────────────────
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 22px 16px 18px;
+  border-bottom: 1px solid $border;
+  min-height: 64px;
+}
+ 
+.brand-mark {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, $accent, $accent-2);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+ 
+.brand-name {
+  display: block;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13.5px;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+}
+ 
+.brand-sub {
+  display: block;
+  color: $text-sub;
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+ 
+// ── Nav ───────────────────────────────────────────────────────────
+.nav {
+  flex: 1;
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+ 
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: $text-muted;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 450;
+  transition: $transition;
+  white-space: nowrap;
+  overflow: hidden;
+ 
+  &:hover {
+    color: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.06);
+  }
+ 
+  &.active {
+    color: #fff;
+    background: rgba($accent, 0.18);
+ 
+    .nav-icon {
+      color: $accent;
+    }
+  }
+}
+ 
+.nav-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 18px;
+}
+ 
+.nav-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+ 
+// ── Sidebar footer ────────────────────────────────────────────────
+.sidebar-footer {
+  padding: 12px 8px;
+  border-top: 1px solid $border;
+}
+ 
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px;
+  border-radius: 8px;
+  transition: $transition;
+  cursor: default;
+ 
+  &:hover { background: rgba(255,255,255,.04); }
+}
+ 
+.avatar {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, $accent, $accent-2);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+ 
+  &.solo {
+    cursor: pointer;
+    border: none;
+    margin: auto;
+    font-size: 11px;
+    transition: $transition;
+ 
+    &:hover { opacity: 0.8; }
+  }
+}
+ 
+.user-info {
+  flex: 1;
+  overflow: hidden;
+}
+ 
+.user-name {
+  display: block;
+  color: rgba(255,255,255,.8);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+ 
+.user-role {
+  display: block;
+  color: $text-sub;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+ 
+.logout-btn {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,.25);
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: $transition;
+ 
+  &:hover { color: #e74c3c; background: rgba(231,76,60,.1); }
+}
+ 
+// ── Toggle button ─────────────────────────────────────────────────
+.toggle-btn {
+  position: absolute;
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  background: $bg-dark-2;
+  border: 1px solid $border;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: $text-muted;
+  transition: $transition;
+  z-index: 10;
+ 
+  &:hover {
+    color: #fff;
+    background: $accent;
+    border-color: $accent;
+  }
+}
+ 
+// ── Main ──────────────────────────────────────────────────────────
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+ 
+// ── Topbar ────────────────────────────────────────────────────────
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  height: 64px;
+  background: #fff;
+  border-bottom: 1px solid #e8eaed;
+  flex-shrink: 0;
+}
+ 
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1f2e;
+  letter-spacing: -0.3px;
+}
+ 
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+ 
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+ 
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: $accent;
+  box-shadow: 0 0 0 2px rgba($accent, 0.25);
+  animation: pulse 2.5s infinite;
+}
+ 
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(29, 158, 117, 0.25); }
+  50%       { box-shadow: 0 0 0 5px rgba(29, 158, 117, 0.1); }
+}
+ 
+.status-text {
+  font-size: 12px;
+  color: #888;
+}
+ 
+// ── Content area ──────────────────────────────────────────────────
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px;
+  background: #f4f6f8;
+}
+ 
+// ── Responsive ───────────────────────────────────────────────────
+@media (max-width: 768px) {
+  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; }
+  .shell:not(.collapsed) .main::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 99;
+  }
+}
+ 
+// ── Role indicator in topbar ───────────────────────────────────
+.role-indicator {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #374151;
+
+  .role-icon { font-size: 14px; line-height: 1; }
+  .role-text { letter-spacing: -0.2px; }
+
+  &[data-role="ADMIN"]   { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
+  &[data-role="DEV"]     { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+  &[data-role="DEVOPS"]  { background: #dcfce7; color: #166534; border-color: #86efac; }
+  &[data-role="AUDITOR"] { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+}
+
+// ── Role pill in user-role ─────────────────────────────────────
+.user-role {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255,255,255,.25);
+
+  &[data-role="ADMIN"]   { color: #c4b5fd; }
+  &[data-role="DEV"]     { color: #93c5fd; }
+  &[data-role="DEVOPS"]  { color: #86efac; }
+  &[data-role="AUDITOR"] { color: #fcd34d; }
+}

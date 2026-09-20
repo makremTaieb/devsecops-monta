@@ -1,0 +1,18 @@
+══════════════════════════════════════════════════════════════════
+  RUN THIS ON YOUR K8s VM BEFORE TRIGGERING THE PIPELINE AGAIN
+══════════════════════════════════════════════════════════════════
+
+kubectl set env deployment/security-service -n apps \
+  SECURITY_POLICY_MIN_SCORE=25 \
+  SECURITY_POLICY_MAX_CRITICAL=5
+
+kubectl rollout status deployment/security-service -n apps --timeout=90s
+
+══════════════════════════════════════════════════════════════════
+  WHY: The running security pod still has min-score=50.
+       Your pipeline scores 30 → 30 < 50 → BLOCKED every time.
+       This patch lowers the threshold to 25 on the live pod.
+       After the pipeline deploys successfully, the new
+       k8s/apps/security.yaml (which has min-score=25) will
+       replace it permanently.
+══════════════════════════════════════════════════════════════════

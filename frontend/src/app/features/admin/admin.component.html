@@ -1,0 +1,205 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h2>👑 Administration</h2>
+      <p class="subtitle">Tableau de bord système — utilisateurs, builds, santé & alertes</p>
+    </div>
+    <button class="btn-refresh" (click)="loadAll()" [disabled]="loading()">↺ Actualiser</button>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card kpi-total" (click)="setTab('users')">
+      <div class="kpi-icon">👥</div>
+      <div class="kpi-body"><div class="kpi-val">{{ totalUsers }}</div><div class="kpi-lbl">Utilisateurs</div></div>
+      <div class="kpi-sub">{{ activeUsers }} actifs</div>
+    </div>
+    <div class="kpi-card kpi-builds" (click)="setTab('builds')">
+      <div class="kpi-icon">🚀</div>
+      <div class="kpi-body"><div class="kpi-val">{{ successRate() }}<span class="kpi-unit">%</span></div><div class="kpi-lbl">Taux de succès</div></div>
+      <div class="kpi-sub">{{ executions().length }} builds total</div>
+    </div>
+    <div class="kpi-card kpi-health" (click)="setTab('health')">
+      <div class="kpi-icon">💚</div>
+      <div class="kpi-body"><div class="kpi-val">{{ servicesUp() }}<span class="kpi-unit">/{{ services().length }}</span></div><div class="kpi-lbl">Services UP</div></div>
+      <div class="kpi-sub" [class.sub-warn]="servicesUp() < services().length">{{ servicesUp() === services().length ? 'Tous opérationnels' : (services().length - servicesUp()) + ' en anomalie' }}</div>
+    </div>
+    <div class="kpi-card kpi-alerts" (click)="setTab('alerts')">
+      <div class="kpi-icon">🚨</div>
+      <div class="kpi-body"><div class="kpi-val" [class.val-red]="failedBuilds() > 0">{{ failedBuilds() }}</div><div class="kpi-lbl">Builds échoués</div></div>
+      <div class="kpi-sub" [class.sub-warn]="runningBuilds() > 0">{{ runningBuilds() }} en cours</div>
+    </div>
+  </div>
+
+  <div class="tab-nav">
+    <button class="tab-btn" [class.active]="activeTab() === 'users'"  (click)="setTab('users')">👥 Utilisateurs</button>
+    <button class="tab-btn" [class.active]="activeTab() === 'builds'" (click)="setTab('builds')">🚀 Historique Builds</button>
+    <button class="tab-btn" [class.active]="activeTab() === 'health'" (click)="setTab('health')">💚 Santé Services</button>
+    <button class="tab-btn" [class.active]="activeTab() === 'alerts'" (click)="setTab('alerts')">🚨 Alertes <span class="tab-badge" *ngIf="failedBuilds() > 0">{{ failedBuilds() }}</span></button>
+  </div>
+
+  <div class="error-msg" *ngIf="error()">{{ error() }}</div>
+
+  <!-- TAB: USERS -->
+  <ng-container *ngIf="activeTab() === 'users'">
+    <div class="loading-msg" *ngIf="loading()">Chargement...</div>
+    <ng-container *ngIf="!loading()">
+      <div class="section-title-row">
+        <span class="section-dot dot-active"></span>
+        <h3>Comptes Actifs <span class="section-count">{{ activeUsers }}</span></h3>
+      </div>
+      <div class="user-table-wrap">
+        <table class="user-table">
+          <thead><tr><th>Utilisateur</th><th>Email</th><th>Rôle</th><th>Inscrit le</th><th>Statut</th><th>Actions</th></tr></thead>
+          <tbody>
+            <ng-container *ngFor="let u of users(); trackBy: trackById">
+              <tr *ngIf="u.enabled">
+                <td><div class="user-cell"><div class="u-avatar" [style.background]="roleColor(u.role)">{{ u.username.slice(0,2).toUpperCase() }}</div><div class="u-name">{{ u.username }}</div></div></td>
+                <td class="u-email">{{ u.email }}</td>
+                <td><select class="role-select" [value]="u.role" (change)="changeRole(u, $any($event.target).value)" [disabled]="updating() === u.id"><option *ngFor="let r of roles" [value]="r" [selected]="r === u.role">{{ roleIcon(r) }} {{ r }}</option></select></td>
+                <td class="u-date">{{ u.createdAt | date:'dd/MM/yyyy' }}</td>
+                <td><span class="status-pill active">Actif</span></td>
+                <td><div class="action-btns"><button class="btn-action btn-block" (click)="toggleEnabled(u)" [disabled]="updating() === u.id">🚫 Bloquer</button><button class="btn-action btn-del" (click)="deleteUser(u)" [disabled]="updating() === u.id">🗑️</button></div></td>
+              </tr>
+            </ng-container>
+            <tr *ngIf="activeUsers === 0"><td colspan="6" class="empty-td">Aucun compte actif</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="section-title-row" style="margin-top:24px">
+        <span class="section-dot dot-blocked"></span>
+        <h3>Comptes Bloqués <span class="section-count blocked">{{ disabledUsers }}</span></h3>
+      </div>
+      <div class="user-table-wrap">
+        <table class="user-table">
+          <thead><tr><th>Utilisateur</th><th>Email</th><th>Rôle</th><th>Inscrit le</th><th>Statut</th><th>Actions</th></tr></thead>
+          <tbody>
+            <ng-container *ngFor="let u of users(); trackBy: trackById">
+              <tr *ngIf="!u.enabled">
+                <td><div class="user-cell"><div class="u-avatar blocked-avatar">{{ u.username.slice(0,2).toUpperCase() }}</div><div class="u-name muted">{{ u.username }}</div></div></td>
+                <td class="u-email muted">{{ u.email }}</td>
+                <td><span class="role-tag" [style.background]="roleColor(u.role)+'22'" [style.color]="roleColor(u.role)">{{ roleIcon(u.role) }} {{ u.role }}</span></td>
+                <td class="u-date muted">{{ u.createdAt | date:'dd/MM/yyyy' }}</td>
+                <td><span class="status-pill blocked">Bloqué</span></td>
+                <td><div class="action-btns"><button class="btn-action btn-activate" (click)="toggleEnabled(u)" [disabled]="updating() === u.id">✅ Activer</button><button class="btn-action btn-del" (click)="deleteUser(u)" [disabled]="updating() === u.id">🗑️</button></div></td>
+              </tr>
+            </ng-container>
+            <tr *ngIf="disabledUsers === 0"><td colspan="6" class="empty-td">Aucun compte bloqué</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </ng-container>
+  </ng-container>
+
+  <!-- TAB: BUILDS -->
+  <ng-container *ngIf="activeTab() === 'builds'">
+    <div class="loading-msg" *ngIf="execLoading()">Chargement des builds...</div>
+    <ng-container *ngIf="!execLoading()">
+      <div class="build-stats">
+        <div class="bstat bstat-success"><div class="bstat-val">{{ executions() | statusCount:'SUCCESS' }}</div><div class="bstat-lbl">✅ Succès</div></div>
+        <div class="bstat bstat-failed"><div class="bstat-val">{{ executions() | statusCount:'FAILED' }}</div><div class="bstat-lbl">❌ Échecs</div></div>
+        <div class="bstat bstat-running"><div class="bstat-val">{{ executions() | statusCount:'RUNNING' }}</div><div class="bstat-lbl">⚡ En cours</div></div>
+        <div class="bstat bstat-pending"><div class="bstat-val">{{ executions() | statusCount:'PENDING' }}</div><div class="bstat-lbl">⏳ En attente</div></div>
+        <div class="bstat bstat-cancelled"><div class="bstat-val">{{ executions() | statusCount:'CANCELLED' }}</div><div class="bstat-lbl">⊘ Annulés</div></div>
+      </div>
+      <div class="rate-bar-wrap" *ngIf="executions().length > 0">
+        <div class="rate-bar-label"><span>Taux de succès global</span><strong>{{ successRate() }}%</strong></div>
+        <div class="rate-bar-track"><div class="rate-bar-fill" [style.width.%]="successRate()" [style.background]="successRate() >= 80 ? '#16a34a' : successRate() >= 50 ? '#d97706' : '#dc2626'"></div></div>
+      </div>
+      <div class="section-title-row">
+        <span class="section-dot" style="background:#2563eb"></span>
+        <h3>Tous les Builds <span class="section-count">{{ executions().length }}</span></h3>
+      </div>
+      <div class="user-table-wrap">
+        <table class="user-table">
+          <thead><tr><th>#</th><th>Pipeline</th><th>Commit</th><th>Statut</th><th>Déclenché par</th><th>Durée</th><th>Date</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let e of executions(); trackBy: trackById">
+              <td class="u-date">#{{ e.jenkinsBuildNumber ?? e.id }}</td>
+              <td><span class="pipeline-tag">Pipeline {{ e.pipelineId }}</span></td>
+              <td><code class="commit-hash">{{ e.commitHash?.slice(0,7) ?? '—' }}</code></td>
+              <td><span class="exec-status-pill" [style.background]="statusBg(e.status)" [style.color]="statusColor(e.status)">{{ statusIcon(e.status) }} {{ e.status }}</span></td>
+              <td class="u-email">{{ e.triggeredBy ?? '—' }}</td>
+              <td class="u-date">{{ duration(e.startTime, e.endTime) }}</td>
+              <td class="u-date">{{ e.startTime | date:'dd/MM HH:mm' }}</td>
+            </tr>
+            <tr *ngIf="executions().length === 0"><td colspan="7" class="empty-td">Aucun build enregistré</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </ng-container>
+  </ng-container>
+
+  <!-- TAB: HEALTH -->
+  <ng-container *ngIf="activeTab() === 'health'">
+    <div class="loading-msg" *ngIf="healthLoading()">Interrogation de Prometheus...</div>
+    <ng-container *ngIf="!healthLoading()">
+      <div class="section-title-row">
+        <span class="section-dot" [style.background]="servicesUp() === services().length ? '#16a34a' : '#dc2626'"></span>
+        <h3>État des Microservices <span class="section-count" [class.blocked]="servicesUp() < services().length">{{ servicesUp() }}/{{ services().length }} UP</span></h3>
+      </div>
+      <div class="health-grid">
+        <div class="health-card" *ngFor="let svc of services()" [class.health-up]="svc.up === true" [class.health-down]="svc.up === false" [class.health-unknown]="svc.up === null">
+          <div class="health-indicator"><div class="health-dot" [class.dot-up]="svc.up === true" [class.dot-down]="svc.up === false" [class.dot-unknown]="svc.up === null"></div></div>
+          <div class="health-body">
+            <div class="health-name">{{ svc.label }}</div>
+            <div class="health-status" [style.color]="svc.up === true ? '#16a34a' : svc.up === false ? '#dc2626' : '#9ca3af'">{{ svc.up === true ? 'Opérationnel' : svc.up === false ? 'Hors service' : 'Inconnu' }}</div>
+          </div>
+          <div class="health-badge" [style.background]="svc.up === true ? '#dcfce7' : svc.up === false ? '#fee2e2' : '#f3f4f6'" [style.color]="svc.up === true ? '#16a34a' : svc.up === false ? '#dc2626' : '#9ca3af'">{{ svc.up === true ? 'UP' : svc.up === false ? 'DOWN' : 'N/A' }}</div>
+        </div>
+      </div>
+      <div class="section-title-row" style="margin-top:24px">
+        <span class="section-dot" style="background:#7c3aed"></span>
+        <h3>Activité Récente <span class="section-count">{{ auditLogs().length }}</span></h3>
+      </div>
+      <div class="audit-feed" *ngIf="!auditLoading()">
+        <div class="audit-item" *ngFor="let log of auditLogs(); trackBy: trackById">
+          <div class="audit-icon">{{ auditIcon(log.action) }}</div>
+          <div class="audit-body"><div class="audit-action">{{ log.action }}</div><div class="audit-detail">{{ log.details }}</div></div>
+          <div class="audit-meta"><span class="audit-source">{{ log.sourceService }}</span><span class="audit-time">{{ log.createdAt | date:'dd/MM HH:mm' }}</span></div>
+          <div class="audit-status-dot" [style.background]="log.status === 'SUCCESS' ? '#16a34a' : '#dc2626'"></div>
+        </div>
+        <div class="empty-td" *ngIf="auditLogs().length === 0">Aucune activité récente</div>
+      </div>
+    </ng-container>
+  </ng-container>
+
+  <!-- TAB: ALERTS -->
+  <ng-container *ngIf="activeTab() === 'alerts'">
+    <div class="section-title-row">
+      <span class="section-dot dot-blocked"></span>
+      <h3>Builds Échoués <span class="section-count blocked">{{ failedBuilds() }}</span></h3>
+    </div>
+    <div class="alert-list" *ngIf="!execLoading()">
+      <div class="alert-card" *ngFor="let e of pipelineAlerts(); trackBy: trackById">
+        <div class="alert-severity">❌</div>
+        <div class="alert-body">
+          <div class="alert-title">Build #{{ e.jenkinsBuildNumber ?? e.id }} — Pipeline {{ e.pipelineId }}</div>
+          <div class="alert-detail">Commit <code>{{ e.commitHash?.slice(0,7) ?? '—' }}</code> • Déclenché par <strong>{{ e.triggeredBy ?? 'inconnu' }}</strong> • Durée {{ duration(e.startTime, e.endTime) }}</div>
+        </div>
+        <div class="alert-time">{{ e.startTime | date:'dd/MM HH:mm' }}</div>
+        <span class="exec-status-pill" [style.background]="statusBg(e.status)" [style.color]="statusColor(e.status)">{{ e.status }}</span>
+      </div>
+      <div class="empty-alert" *ngIf="pipelineAlerts().length === 0">
+        <div class="empty-alert-icon">✅</div>
+        <div class="empty-alert-msg">Aucun build échoué — tout fonctionne correctement</div>
+      </div>
+    </div>
+    <ng-container *ngIf="runningBuilds() > 0 && !execLoading()">
+      <div class="section-title-row" style="margin-top:24px">
+        <span class="section-dot" style="background:#2563eb"></span>
+        <h3>En cours <span class="section-count">{{ runningBuilds() }}</span></h3>
+      </div>
+      <div class="alert-list">
+        <div class="alert-card alert-running" *ngFor="let e of executions() | statusFilter:['RUNNING','PENDING']; trackBy: trackById">
+          <div class="alert-severity">⚡</div>
+          <div class="alert-body">
+            <div class="alert-title">Build #{{ e.jenkinsBuildNumber ?? e.id }} — Pipeline {{ e.pipelineId }}</div>
+            <div class="alert-detail">Commit <code>{{ e.commitHash?.slice(0,7) ?? '—' }}</code> • Déclenché par <strong>{{ e.triggeredBy ?? 'inconnu' }}</strong></div>
+          </div>
+          <div class="alert-time">{{ e.startTime | date:'dd/MM HH:mm' }}</div>
+          <span class="exec-status-pill" [style.background]="statusBg(e.status)" [style.color]="statusColor(e.status)">{{ e.status }}</span>
+        </div>
+      </div>
+    </ng-container>
+  </ng-container>
+</div>

@@ -1,0 +1,85 @@
+<div class="shell" [class.collapsed]="!sidebarOpen()">
+
+  <!-- ── Sidebar ────────────────────────────────────────────── -->
+  <aside class="sidebar">
+
+    <div class="brand">
+      <div class="brand-mark">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div class="brand-text" *ngIf="sidebarOpen()">
+        <span class="brand-name">DevSecOps</span>
+        <span class="brand-sub">STB Platform</span>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a
+        *ngFor="let item of navItems()"
+        [routerLink]="item.path"
+        routerLinkActive="active"
+        class="nav-item"
+        [title]="!sidebarOpen() ? item.label : ''"
+      >
+        <span class="nav-icon" [innerHTML]="getIcon(item.icon)"></span>
+        <span class="nav-label" *ngIf="sidebarOpen()">{{ item.label }}</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-card" *ngIf="sidebarOpen()">
+        <div class="avatar">{{ initials }}</div>
+        <div class="user-info">
+          <span class="user-name">{{ auth.username }}</span>
+          <span class="user-role" [attr.data-role]="auth.role">{{ auth.role }}</span>
+        </div>
+        <button class="logout-btn" (click)="auth.logout()" title="Déconnexion">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+      </div>
+      <button class="avatar solo" *ngIf="!sidebarOpen()"
+              (click)="auth.logout()" title="Déconnexion">
+        {{ initials }}
+      </button>
+    </div>
+
+    <button class="toggle-btn" (click)="toggleSidebar()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.5">
+        <polyline [attr.points]="sidebarOpen() ? '15 18 9 12 15 6' : '9 18 15 12 9 6'"/>
+      </svg>
+    </button>
+  </aside>
+
+  <!-- ── Main content ───────────────────────────────────────── -->
+  <div class="main">
+    <header class="topbar">
+      <h1 class="page-title">{{ pageTitle() }}</h1>
+      <div class="topbar-right">
+        <div class="role-indicator" [attr.data-role]="auth.role">
+          <span class="role-icon">{{ roleIcon() }}</span>
+          <span class="role-text">{{ roleLabel() }}</span>
+        </div>
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span class="status-text">Système opérationnel</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="content">
+      <router-outlet />
+    </div>
+  </div>
+
+</div>

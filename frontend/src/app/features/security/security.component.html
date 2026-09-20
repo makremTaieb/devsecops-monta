@@ -1,0 +1,255 @@
+<div class="page">
+
+  <!-- ── Header ── -->
+  <div class="page-header">
+    <h2>Sécurité & Vulnérabilités</h2>
+    <select class="sel" (change)="onProjectChange($event)">
+      <option value="">— Sélectionner un projet —</option>
+      <option *ngFor="let p of projects()" [value]="p.id">{{ p.name }}</option>
+    </select>
+  </div>
+
+  <div class="loading-row" *ngIf="loading()">
+    <span class="spinner-sm"></span> Chargement des scans…
+  </div>
+
+  <ng-container *ngIf="!loading() && scans().length">
+
+    <!-- ── KPI CARDS ── -->
+    <div class="kpi-row">
+      <div class="kpi-card kpi-score" [class]="scoreClass(avgScore())">
+        <div class="kpi-ring">
+          <svg viewBox="0 0 100 100" width="80" height="80">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" stroke-width="10"/>
+            <circle cx="50" cy="50" r="40" fill="none"
+                    [attr.stroke]="avgScore()>=70?'#16a34a':avgScore()>=40?'#d97706':'#dc2626'"
+                    stroke-width="10"
+                    [attr.stroke-dasharray]="avgScore()*2.51 + ' 251'"
+                    stroke-dashoffset="62.75"
+                    stroke-linecap="round"
+                    transform="rotate(-90 50 50)"/>
+            <text x="50" y="54" text-anchor="middle" font-size="20" font-weight="800" fill="#111827">
+              {{ avgScore() }}
+            </text>
+          </svg>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-val">{{ avgScore() }}<span class="kpi-unit">/100</span></div>
+          <div class="kpi-label">Score sécurité moyen</div>
+          <div class="kpi-sub">{{ scoreLabel(avgScore()) }}</div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-big" style="color:#dc2626">{{ sevCounts().CRITICAL }}</div>
+        <div class="kpi-label">Critiques</div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" style="background:#dc2626"
+             [style.width.%]="allVulns().length ? (sevCounts().CRITICAL/allVulns().length)*100 : 0"></div></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-big" style="color:#f97316">{{ sevCounts().HIGH }}</div>
+        <div class="kpi-label">Hautes</div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" style="background:#f97316"
+             [style.width.%]="allVulns().length ? (sevCounts().HIGH/allVulns().length)*100 : 0"></div></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-big" style="color:#eab308">{{ sevCounts().MEDIUM }}</div>
+        <div class="kpi-label">Moyennes</div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" style="background:#eab308"
+             [style.width.%]="allVulns().length ? (sevCounts().MEDIUM/allVulns().length)*100 : 0"></div></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-big" style="color:#22c55e">{{ sevCounts().LOW }}</div>
+        <div class="kpi-label">Faibles</div>
+        <div class="kpi-bar"><div class="kpi-bar-fill" style="background:#22c55e"
+             [style.width.%]="allVulns().length ? (sevCounts().LOW/allVulns().length)*100 : 0"></div></div>
+      </div>
+      <div class="kpi-card kpi-blocked" [class.has-blocked]="blockedCount() > 0">
+        <div class="kpi-big" [style.color]="blockedCount()>0?'#dc2626':'#16a34a'">{{ blockedCount() }}</div>
+        <div class="kpi-label">Scans bloqués</div>
+        <div class="kpi-sub">{{ scans().length }} scans total</div>
+      </div>
+    </div>
+
+    <!-- ── CHARTS ROW: Donut + Type bars ── -->
+    <div class="charts-row">
+
+      <!-- Severity donut -->
+      <div class="chart-card">
+        <h3 class="chart-title">Répartition par sévérité</h3>
+        <div class="donut-wrap">
+          <svg viewBox="0 0 110 110" width="110" height="110">
+            <circle cx="55" cy="55" r="45" fill="none" stroke="#f3f4f6" stroke-width="16"/>
+            <ng-container *ngIf="sevDonut().length; else emptyDonut">
+              <circle *ngFor="let seg of sevDonut()"
+                      cx="55" cy="55" r="45" fill="none"
+                      [attr.stroke]="seg.color" stroke-width="16"
+                      [attr.stroke-dasharray]="seg.dash + ' ' + seg.gap"
+                      [attr.stroke-dashoffset]="-seg.offset"
+                      transform="rotate(-90 55 55)"/>
+            </ng-container>
+            <ng-template #emptyDonut>
+              <text x="55" y="60" text-anchor="middle" font-size="10" fill="#9ca3af">Aucune</text>
+            </ng-template>
+            <text x="55" y="50" text-anchor="middle" font-size="16" font-weight="800" fill="#111827">
+              {{ allVulns().length }}
+            </text>
+            <text x="55" y="64" text-anchor="middle" font-size="8" fill="#6b7280">vulnérabilités</text>
+          </svg>
+          <div class="donut-legend">
+            <div class="donut-leg" *ngFor="let seg of sevDonut()">
+              <span class="d-dot" [style.background]="seg.color"></span>
+              <span class="d-label">{{ seg.label }}</span>
+              <span class="d-val">{{ seg.value }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Type breakdown -->
+      <div class="chart-card">
+        <h3 class="chart-title">Répartition par type</h3>
+        <div class="type-bars">
+          <div class="type-row">
+            <span class="type-label">SCA</span>
+            <div class="type-track">
+              <div class="type-fill" style="background:#6366f1"
+                   [style.width.%]="allVulns().length ? (typeCounts().SCA/allVulns().length)*100 : 0"></div>
+            </div>
+            <span class="type-val">{{ typeCounts().SCA }}</span>
+          </div>
+          <div class="type-row">
+            <span class="type-label">SAST</span>
+            <div class="type-track">
+              <div class="type-fill" style="background:#f97316"
+                   [style.width.%]="allVulns().length ? (typeCounts().SAST/allVulns().length)*100 : 0"></div>
+            </div>
+            <span class="type-val">{{ typeCounts().SAST }}</span>
+          </div>
+          <div class="type-row">
+            <span class="type-label">SECRET</span>
+            <div class="type-track">
+              <div class="type-fill" style="background:#dc2626"
+                   [style.width.%]="allVulns().length ? (typeCounts().SECRET/allVulns().length)*100 : 0"></div>
+            </div>
+            <span class="type-val">{{ typeCounts().SECRET }}</span>
+          </div>
+        </div>
+
+        <!-- Score trend per scan -->
+        <div class="score-trend" *ngIf="scans().length > 1">
+          <div class="trend-label">Évolution du score</div>
+          <svg viewBox="0 0 200 60" width="100%" height="60" preserveAspectRatio="none">
+            <polyline
+              [attr.points]="scoreTrendPoints()"
+              fill="none" stroke="#3b82f6" stroke-width="2" stroke-linejoin="round"/>
+            <circle *ngFor="let s of scans().slice().reverse(); let i = index"
+                    [attr.cx]="i*(200/Math.max(1,scans().length-1))"
+                    [attr.cy]="60 - (scoreOf(s)*0.6)"
+                    r="3"
+                    [attr.fill]="scoreOf(s)>=70?'#16a34a':scoreOf(s)>=40?'#d97706':'#dc2626'"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Scan score cards -->
+      <div class="chart-card scan-list-card">
+        <h3 class="chart-title">Scans ({{ scans().length }})</h3>
+        <div class="scan-score-list">
+          <div class="scan-score-item" *ngFor="let s of scans()"
+               [class.active]="activeScanId() === s.id"
+               (click)="toggleScan(s.id)">
+            <div class="ssi-header">
+              <span class="ssi-id">Scan #{{ s.id }}</span>
+              <span class="ssi-badge" [class.blocked]="s.blocked">{{ s.blocked ? 'BLOQUÉ' : 'OK' }}</span>
+              <span class="ssi-score" [class]="scoreClass(scoreOf(s))">
+                {{ scoreOf(s) | number:'1.0-1' }}
+              </span>
+            </div>
+            <div class="ssi-bar">
+              <div class="ssi-bar-fill" [style.width.%]="scoreBarWidth(s)"
+                   [style.background]="scoreOf(s)>=70?'#16a34a':scoreOf(s)>=40?'#d97706':'#dc2626'">
+              </div>
+            </div>
+            <div class="ssi-counts">
+              <span class="sc CRITICAL">{{ countBySeverity(s, 'CRITICAL') }} C</span>
+              <span class="sc HIGH">{{ countBySeverity(s, 'HIGH') }} H</span>
+              <span class="sc MEDIUM">{{ countBySeverity(s, 'MEDIUM') }} M</span>
+              <span class="sc LOW">{{ countBySeverity(s, 'LOW') }} L</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── VULNERABILITY TABLE ── -->
+    <div class="vuln-section">
+      <div class="vuln-header">
+        <h3>Vulnérabilités ({{ filteredVulns().length }} / {{ allVulns().length }})</h3>
+        <div class="vuln-filters">
+          <!-- Search -->
+          <input class="search-input" placeholder="🔍 Rechercher CVE, description…"
+                 (input)="setSearch($event)"/>
+          <!-- Severity filter -->
+          <div class="filter-chips">
+            <button class="fchip" [class.active]="filterSev()==='ALL'"    (click)="setSevFilter('ALL')">Tout</button>
+            <button class="fchip fchip-crit" [class.active]="filterSev()==='CRITICAL'" (click)="setSevFilter('CRITICAL')">Critique</button>
+            <button class="fchip fchip-high" [class.active]="filterSev()==='HIGH'"     (click)="setSevFilter('HIGH')">Haute</button>
+            <button class="fchip fchip-med"  [class.active]="filterSev()==='MEDIUM'"   (click)="setSevFilter('MEDIUM')">Moyenne</button>
+            <button class="fchip fchip-low"  [class.active]="filterSev()==='LOW'"      (click)="setSevFilter('LOW')">Faible</button>
+          </div>
+          <!-- Type filter -->
+          <div class="filter-chips">
+            <button class="fchip" [class.active]="filterType()==='ALL'"    (click)="setTypeFilter('ALL')">Tous types</button>
+            <button class="fchip" [class.active]="filterType()==='SCA'"    (click)="setTypeFilter('SCA')">SCA</button>
+            <button class="fchip" [class.active]="filterType()==='SAST'"   (click)="setTypeFilter('SAST')">SAST</button>
+            <button class="fchip" [class.active]="filterType()==='SECRET'" (click)="setTypeFilter('SECRET')">SECRET</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="vuln-table-wrap">
+        <table class="vuln-table" *ngIf="filteredVulns().length; else noVulns">
+          <thead>
+            <tr>
+              <th>Sévérité</th>
+              <th>Type</th>
+              <th>CVE / ID</th>
+              <th>Description</th>
+              <th>Fichier / Package</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let v of filteredVulns()">
+              <td><span class="sev-pill" [class]="sevClass(v.severity)">{{ v.severity }}</span></td>
+              <td><span class="type-pill" [class]="typeClass(v.type)">{{ v.type }}</span></td>
+              <td><code class="cve-code">{{ v.cve || '—' }}</code></td>
+              <td class="desc-cell">{{ v.description | slice:0:80 }}{{ v.description.length > 80 ? '…' : '' }}</td>
+              <td class="path-cell">{{ v.filePath | slice:0:50 }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <ng-template #noVulns>
+          <div class="vuln-empty">
+            <span>{{ allVulns().length ? 'Aucun résultat pour ce filtre' : '✓ Aucune vulnérabilité détectée' }}</span>
+          </div>
+        </ng-template>
+      </div>
+    </div>
+
+  </ng-container>
+
+  <!-- Empty state -->
+  <div class="empty-page" *ngIf="!loading() && !scans().length && selectedId()">
+    <div class="empty-icon">🛡️</div>
+    <p>Aucun scan de sécurité trouvé pour ce projet.</p>
+    <small>Exécutez un pipeline pour générer un rapport de sécurité.</small>
+  </div>
+
+  <div class="empty-page" *ngIf="!loading() && !selectedId()">
+    <div class="empty-icon">🔍</div>
+    <p>Sélectionnez un projet pour voir ses rapports de sécurité.</p>
+  </div>
+
+</div>

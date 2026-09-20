@@ -1,0 +1,131 @@
+<div class="audit-page">
+
+  <!-- ── Header ──────────────────────────────────────────────── -->
+  <div class="page-header">
+    <div class="header-left">
+      <h2 class="page-title">Audit Logs</h2>
+      <span class="total-badge">{{ total }} entrée(s)</span>
+    </div>
+    <button class="btn-refresh" (click)="fetch()" [disabled]="loading()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+      </svg>
+      Actualiser
+    </button>
+  </div>
+
+  <!-- ── Filters ──────────────────────────────────────────────── -->
+  <div class="filters-card">
+    <div class="filters-grid">
+
+      <div class="filter-group">
+        <label>Utilisateur</label>
+        <input type="text" [(ngModel)]="filterUsername" placeholder="Rechercher..." class="filter-input"/>
+      </div>
+
+      <div class="filter-group">
+        <label>Action</label>
+        <select [(ngModel)]="filterAction" class="filter-select">
+          <option value="">Toutes les actions</option>
+          <option *ngFor="let a of actions" [value]="a">{{ a }}</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Ressource</label>
+        <select [(ngModel)]="filterResource" class="filter-select">
+          <option value="">Toutes</option>
+          <option *ngFor="let r of resources" [value]="r">{{ r }}</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Statut</label>
+        <select [(ngModel)]="filterStatus" class="filter-select">
+          <option value="">Tous</option>
+          <option value="SUCCESS">SUCCESS</option>
+          <option value="FAILURE">FAILURE</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Du</label>
+        <input type="datetime-local" [(ngModel)]="filterFrom" class="filter-input"/>
+      </div>
+
+      <div class="filter-group">
+        <label>Au</label>
+        <input type="datetime-local" [(ngModel)]="filterTo" class="filter-input"/>
+      </div>
+
+    </div>
+    <div class="filter-actions">
+      <button class="btn-primary" (click)="applyFilters()">Rechercher</button>
+      <button class="btn-ghost"   (click)="resetFilters()">Réinitialiser</button>
+    </div>
+  </div>
+
+  <!-- ── Error ─────────────────────────────────────────────────── -->
+  <div class="error-banner" *ngIf="error()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    {{ error() }}
+  </div>
+
+  <!-- ── Loading ───────────────────────────────────────────────── -->
+  <div class="loading-row" *ngIf="loading()">
+    <div class="spinner"></div>
+    <span>Chargement des logs…</span>
+  </div>
+
+  <!-- ── Table ─────────────────────────────────────────────────── -->
+  <div class="table-card" *ngIf="!loading()">
+    <table class="audit-table">
+      <thead>
+        <tr>
+          <th>Horodatage</th>
+          <th>Utilisateur</th>
+          <th>Action</th>
+          <th>Ressource</th>
+          <th>Détails</th>
+          <th>IP</th>
+          <th>Service</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngIf="logs().length === 0">
+          <td colspan="8" class="empty-cell">Aucun log trouvé.</td>
+        </tr>
+        <tr *ngFor="let log of logs()">
+          <td class="ts-cell">{{ formatTs(log.timestamp) }}</td>
+          <td>{{ log.username ?? '—' }}</td>
+          <td>
+            <span class="badge" [ngClass]="actionBadgeClass(log.action)">
+              {{ log.action }}
+            </span>
+          </td>
+          <td>{{ log.resource ?? '—' }}</td>
+          <td class="details-cell" [title]="log.details ?? ''">{{ log.details ?? '—' }}</td>
+          <td class="mono">{{ log.ipAddress ?? '—' }}</td>
+          <td class="mono">{{ log.sourceService ?? '—' }}</td>
+          <td>
+            <span class="status-pill" [ngClass]="log.status === 'SUCCESS' ? 'pill-ok' : 'pill-fail'">
+              {{ log.status }}
+            </span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Pagination ────────────────────────────────────────────── -->
+  <div class="pagination" *ngIf="totalPages > 1">
+    <button class="page-btn" (click)="prevPage()" [disabled]="page === 0">‹ Précédent</button>
+    <span class="page-info">Page {{ page + 1 }} / {{ totalPages }}</span>
+    <button class="page-btn" (click)="nextPage()" [disabled]="page >= totalPages - 1">Suivant ›</button>
+  </div>
+
+</div>

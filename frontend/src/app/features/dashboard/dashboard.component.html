@@ -1,0 +1,384 @@
+<div class="page">
+
+  <!-- ══ HEADER ══════════════════════════════════════════════ -->
+  <div class="page-header">
+    <div class="header-left">
+      <div class="role-hero" [attr.data-role]="auth.role">
+        <span class="role-hero-icon">{{ auth.role === 'ADMIN' ? '👑' : auth.role === 'DEVOPS' ? '🚀' : '💻' }}</span>
+        <div>
+          <h1>{{ auth.role === 'ADMIN' ? 'Dashboard Administrateur' : auth.role === 'DEVOPS' ? 'Dashboard DevOps' : 'Dashboard Développeur' }}</h1>
+          <p>Bienvenue, <strong>{{ auth.currentUser()?.username }}</strong> — {{ today | date:'EEEE d MMMM yyyy':'':'fr' }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="refresh-info">Màj : {{ lastRefresh() | date:'HH:mm:ss' }}</span>
+      <button class="btn-refresh" (click)="loadAll()" [disabled]="loading()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  <!-- skeleton -->
+  <ng-container *ngIf="loading()">
+    <div class="skeleton-grid"><div class="skeleton-card" *ngFor="let i of [1,2,3,4,5,6]"></div></div>
+  </ng-container>
+
+  <ng-container *ngIf="!loading()">
+
+    <!-- ════════════════════════════════════════════════════════
+         ADMIN DASHBOARD
+         ════════════════════════════════════════════════════════ -->
+    <ng-container *ngIf="isAdmin">
+
+      <!-- KPI row 1: platform overview -->
+      <div class="section-label">Vue d'ensemble plateforme</div>
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-blue">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+          <div class="kpi-body"><div class="kpi-value">{{ kpis().projects }}</div><div class="kpi-label">Projets</div><div class="kpi-sub">{{ kpis().active }} actifs</div></div>
+        </div>
+        <div class="kpi-card kpi-green">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          <div class="kpi-body"><div class="kpi-value">{{ kpis().succeeded }}</div><div class="kpi-label">Pipelines réussis</div><div class="kpi-sub">{{ successRate() }}% succès</div></div>
+        </div>
+        <div class="kpi-card kpi-red">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+          <div class="kpi-body"><div class="kpi-value">{{ kpis().failed }}</div><div class="kpi-label">Pipelines échoués</div><div class="kpi-sub">{{ changeFailRate() }} d'échec</div></div>
+        </div>
+        <div class="kpi-card kpi-orange">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+          <div class="kpi-body"><div class="kpi-value">{{ kpis().blocked }}</div><div class="kpi-label">Bloqués sécurité</div><div class="kpi-sub">{{ kpis().warnings }} alertes</div></div>
+        </div>
+        <div class="kpi-card kpi-purple">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+          <div class="kpi-body"><div class="kpi-value">{{ kpis().totalUsers }}</div><div class="kpi-label">Utilisateurs</div><div class="kpi-sub">{{ kpis().activeUsers }} actifs</div></div>
+        </div>
+        <div class="kpi-card kpi-danger">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
+          <div class="kpi-body"><div class="kpi-value">{{ kpis().blockedUsers }}</div><div class="kpi-label">Comptes bloqués</div><div class="kpi-sub">sur {{ kpis().totalUsers }} total</div></div>
+          <a routerLink="/admin" class="kpi-action-link">Gérer →</a>
+        </div>
+      </div>
+
+      <!-- Charts row -->
+      <div class="charts-row">
+        <div class="chart-card chart-wide">
+          <div class="chart-header"><h3>Activité pipeline — 14 derniers jours</h3>
+            <div class="chart-legend"><span class="leg leg-green">Succès</span><span class="leg leg-red">Échecs</span><span class="leg leg-orange">Sécurité</span></div>
+          </div>
+          <ng-container *ngTemplateOutlet="barChart"></ng-container>
+        </div>
+        <div class="chart-card chart-narrow">
+          <div class="chart-header"><h3>Distribution</h3></div>
+          <ng-container *ngTemplateOutlet="donutChart"></ng-container>
+        </div>
+      </div>
+
+      <!-- Bottom row: User Management + Activity -->
+      <div class="section-label">Gestion des utilisateurs
+        <a routerLink="/admin" class="section-link">Voir tout →</a>
+      </div>
+      <div class="bottom-row">
+
+        <!-- Blocked / Active users panel -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Comptes actifs / bloqués</h3>
+            <div class="user-stats-pills">
+              <span class="upill upill-active">{{ kpis().activeUsers }} actifs</span>
+              <span class="upill upill-blocked">{{ kpis().blockedUsers }} bloqués</span>
+            </div>
+          </div>
+          <div class="role-dist-row">
+            <div class="rdist-item" *ngFor="let r of [['ADMIN','👑',kpis().admins,'#7c3aed'],['DEV','💻',kpis().devs,'#2563eb'],['DEVOPS','🚀',kpis().devops,'#059669']]">
+              <span class="rdist-icon">{{ r[1] }}</span>
+              <span class="rdist-label">{{ r[0] }}</span>
+              <span class="rdist-count" [style.color]="r[3]">{{ r[2] }}</span>
+            </div>
+          </div>
+          <div class="user-list">
+            <div class="user-row" *ngFor="let u of recentUsers()">
+              <div class="u-avatar" [style.background]="roleColor(u.role)">{{ u.username.slice(0,2).toUpperCase() }}</div>
+              <div class="u-info">
+                <span class="u-name">{{ u.username }}</span>
+                <span class="u-email">{{ u.email }}</span>
+              </div>
+              <span class="u-role-badge" [style.background]="roleColor(u.role)+'22'" [style.color]="roleColor(u.role)">{{ roleIcon2(u.role) }} {{ u.role }}</span>
+              <span class="u-status" [class.active]="u.enabled" [class.blocked]="!u.enabled">{{ u.enabled ? 'Actif' : 'Bloqué' }}</span>
+            </div>
+            <div class="empty-state" *ngIf="!recentUsers().length"><p>Aucun utilisateur</p></div>
+          </div>
+        </div>
+
+        <!-- Notifications feed -->
+        <div class="panel">
+          <div class="panel-header"><h3>Activité récente</h3><a routerLink="/notifications" class="panel-link">Voir tout →</a></div>
+          <ng-container *ngTemplateOutlet="feedList"></ng-container>
+        </div>
+      </div>
+
+      <!-- Logs quick link -->
+      <div class="quick-links-row">
+        <a routerLink="/audit-logs" class="quick-link-card ql-audit"><span>📋</span><div><strong>Audit Logs</strong><small>Traçabilité complète</small></div><span>→</span></a>
+        <a routerLink="/monitoring" class="quick-link-card ql-monitor"><span>📡</span><div><strong>Monitoring</strong><small>Infrastructure live</small></div><span>→</span></a>
+        <a routerLink="/projects"   class="quick-link-card ql-projects"><span>📁</span><div><strong>Projets</strong><small>Déploiements & pipelines</small></div><span>→</span></a>
+      </div>
+
+    </ng-container>
+
+    <!-- ════════════════════════════════════════════════════════
+         DEVOPS DASHBOARD
+         ════════════════════════════════════════════════════════ -->
+    <ng-container *ngIf="isDevops">
+
+      <div class="section-label">Infrastructure & Déploiements</div>
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-green">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div class="kpi-body"><div class="kpi-value">{{ kpis().succeeded }}</div><div class="kpi-label">Déploiements réussis</div><div class="kpi-sub">{{ successRate() }}% succès</div></div>
+        </div>
+        <div class="kpi-card kpi-red">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+          <div class="kpi-body"><div class="kpi-value">{{ kpis().failed }}</div><div class="kpi-label">Déploiements échoués</div><div class="kpi-sub">{{ changeFailRate() }}</div></div>
+        </div>
+        <div class="kpi-card kpi-orange">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+          <div class="kpi-body"><div class="kpi-value">{{ kpis().blocked }}</div><div class="kpi-label">Bloqués sécurité</div><div class="kpi-sub">{{ kpis().warnings }} warnings</div></div>
+        </div>
+        <div class="kpi-card kpi-blue">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+          <div class="kpi-body"><div class="kpi-value">{{ kpis().projects }}</div><div class="kpi-label">Projets</div><div class="kpi-sub">{{ kpis().active }} actifs</div></div>
+        </div>
+        <div class="kpi-card kpi-teal">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+          <div class="kpi-body"><div class="kpi-value">{{ securityScore() }}<span class="kpi-unit">%</span></div><div class="kpi-label">Score sécurité</div><div class="kpi-sub" [class.good]="securityScore()>=70">{{ securityScore()>=70?'Bon':'Critique' }}</div></div>
+        </div>
+        <div class="kpi-card kpi-purple">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          <div class="kpi-body"><div class="kpi-value">{{ deployFrequency().value }}</div><div class="kpi-label">Déploiements/jour</div><div class="kpi-sub">14 derniers jours</div></div>
+        </div>
+      </div>
+
+      <div class="charts-row">
+        <div class="chart-card chart-wide">
+          <div class="chart-header"><h3>Pipeline & Sécurité — 14 derniers jours</h3>
+            <div class="chart-legend"><span class="leg leg-green">Succès</span><span class="leg leg-red">Échecs</span><span class="leg leg-orange">Sécurité</span></div>
+          </div>
+          <ng-container *ngTemplateOutlet="barChart"></ng-container>
+        </div>
+        <div class="chart-card chart-narrow">
+          <div class="chart-header"><h3>Distribution</h3></div>
+          <ng-container *ngTemplateOutlet="donutChart"></ng-container>
+        </div>
+      </div>
+
+      <!-- DORA -->
+      <div class="dora-row">
+        <div class="dora-title">DORA Métriques</div>
+        <div class="dora-grid">
+          <div class="dora-card"><div class="dora-icon" style="background:#dbeafe;color:#1d4ed8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div class="dora-val">{{ deployFrequency().label }}</div><div class="dora-label">Fréquence déploiement</div><div class="dora-badge" [class.dora-elite]="deployFrequency().value>=1">{{ deployFrequency().value>=1?'Élite':deployFrequency().value>=0.5?'Haute':'Moyenne' }}</div></div>
+          <div class="dora-card"><div class="dora-icon" style="background:#dcfce7;color:#16a34a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div><div class="dora-val">{{ successRate() }}%</div><div class="dora-label">Taux de succès</div><div class="dora-badge" [class.dora-elite]="successRate()>=90">{{ successRate()>=90?'Élite':successRate()>=75?'Haute':'Moyenne' }}</div></div>
+          <div class="dora-card"><div class="dora-icon" style="background:#fef3c7;color:#d97706"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><div class="dora-val">{{ changeFailRate() }}</div><div class="dora-label">Taux d'échec</div><div class="dora-badge" [class.dora-elite]="kpis().failed===0">{{ kpis().failed===0?'Élite':'Améliorer' }}</div></div>
+          <div class="dora-card"><div class="dora-icon" style="background:#ede9fe;color:#7c3aed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div class="dora-val">{{ securityScore() }}%</div><div class="dora-label">Score sécurité</div><div class="dora-badge" [class.dora-elite]="securityScore()>=80">{{ securityScore()>=80?'Élite':securityScore()>=60?'Haute':'Risqué' }}</div></div>
+        </div>
+      </div>
+
+      <div class="bottom-row">
+        <div class="panel">
+          <div class="panel-header"><h3>Projets récents</h3><a routerLink="/projects" class="panel-link">Gérer →</a></div>
+          <ng-container *ngTemplateOutlet="projectList"></ng-container>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><h3>Activité récente</h3><a routerLink="/notifications" class="panel-link">Voir tout →</a></div>
+          <ng-container *ngTemplateOutlet="feedList"></ng-container>
+        </div>
+      </div>
+
+      <div class="quick-links-row">
+        <a routerLink="/security"   class="quick-link-card ql-security"><span>🛡️</span><div><strong>Sécurité</strong><small>Scans & vulnérabilités</small></div><span>→</span></a>
+        <a routerLink="/audit-logs" class="quick-link-card ql-audit"><span>📋</span><div><strong>Logs</strong><small>Audit & traçabilité</small></div><span>→</span></a>
+        <a routerLink="/monitoring" class="quick-link-card ql-monitor"><span>📡</span><div><strong>Monitoring</strong><small>Infrastructure live</small></div><span>→</span></a>
+      </div>
+
+    </ng-container>
+
+    <!-- ════════════════════════════════════════════════════════
+         DEV DASHBOARD
+         ════════════════════════════════════════════════════════ -->
+    <ng-container *ngIf="isDev">
+
+      <div class="section-label">Mes projets & pipelines</div>
+      <div class="kpi-grid kpi-grid-4">
+        <div class="kpi-card kpi-blue">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+          <div class="kpi-body"><div class="kpi-value">{{ kpis().projects }}</div><div class="kpi-label">Mes projets</div><div class="kpi-sub">{{ kpis().active }} actifs</div></div>
+        </div>
+        <div class="kpi-card kpi-green">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div class="kpi-body"><div class="kpi-value">{{ kpis().succeeded }}</div><div class="kpi-label">Builds réussis</div><div class="kpi-sub">{{ successRate() }}% succès</div></div>
+        </div>
+        <div class="kpi-card kpi-red">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+          <div class="kpi-body"><div class="kpi-value">{{ kpis().failed }}</div><div class="kpi-label">Builds échoués</div><div class="kpi-sub">{{ changeFailRate() }}</div></div>
+        </div>
+        <div class="kpi-card kpi-purple">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+          <div class="kpi-body"><div class="kpi-value">{{ kpis().total_notif }}</div><div class="kpi-label">Notifications</div><div class="kpi-sub">{{ kpis().failed }} alertes</div></div>
+        </div>
+      </div>
+
+      <!-- Account tree + pipeline status -->
+      <div class="bottom-row">
+
+        <!-- Account tree panel -->
+        <div class="panel">
+          <div class="panel-header"><h3>🌳 Mon compte</h3></div>
+          <div class="account-tree">
+            <div class="tree-root">
+              <div class="tree-avatar">{{ auth.currentUser()?.username?.slice(0,2)?.toUpperCase() }}</div>
+              <div class="tree-user-info">
+                <span class="tree-username">{{ auth.currentUser()?.username }}</span>
+                <span class="tree-role-badge">💻 Développeur</span>
+              </div>
+            </div>
+            <div class="tree-branches">
+              <div class="tree-branch">
+                <div class="tree-branch-icon" style="background:#eff6ff;color:#1d4ed8">📁</div>
+                <div class="tree-branch-body">
+                  <span class="tree-branch-label">Projets</span>
+                  <span class="tree-branch-val">{{ kpis().projects }} projet{{ kpis().projects>1?'s':'' }}</span>
+                </div>
+              </div>
+              <div class="tree-branch">
+                <div class="tree-branch-icon" style="background:#f0fdf4;color:#16a34a">✓</div>
+                <div class="tree-branch-body">
+                  <span class="tree-branch-label">Builds réussis</span>
+                  <span class="tree-branch-val">{{ kpis().succeeded }}</span>
+                </div>
+              </div>
+              <div class="tree-branch">
+                <div class="tree-branch-icon" style="background:#fff5f5;color:#dc2626">✕</div>
+                <div class="tree-branch-body">
+                  <span class="tree-branch-label">Builds échoués</span>
+                  <span class="tree-branch-val">{{ kpis().failed }}</span>
+                </div>
+              </div>
+              <div class="tree-branch">
+                <div class="tree-branch-icon" style="background:#faf5ff;color:#7c3aed">🔔</div>
+                <div class="tree-branch-body">
+                  <span class="tree-branch-label">Notifications</span>
+                  <span class="tree-branch-val">{{ kpis().total_notif }}</span>
+                </div>
+              </div>
+              <div class="tree-branch tree-branch-locked">
+                <div class="tree-branch-icon">🔒</div>
+                <div class="tree-branch-body">
+                  <span class="tree-branch-label">Déploiement</span>
+                  <span class="tree-branch-val locked">Réservé DevOps</span>
+                </div>
+              </div>
+              <div class="tree-branch tree-branch-locked">
+                <div class="tree-branch-icon">🔒</div>
+                <div class="tree-branch-body">
+                  <span class="tree-branch-label">Monitoring</span>
+                  <span class="tree-branch-val locked">Réservé DevOps</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pipeline activity -->
+        <div class="panel">
+          <div class="panel-header"><h3>Activité pipeline</h3><a routerLink="/projects" class="panel-link">Mes projets →</a></div>
+          <div class="pipeline-activity-chart">
+            <svg [attr.viewBox]="'0 0 ' + chartW + ' ' + (chartH + 30)" width="100%" preserveAspectRatio="none">
+              <line *ngFor="let pct of [25,50,75,100]"
+                [attr.x1]="0" [attr.y1]="chartH - 20 - ((pct/100)*(chartH-20))"
+                [attr.x2]="chartW" [attr.y2]="chartH - 20 - ((pct/100)*(chartH-20))"
+                stroke="#f3f4f6" stroke-width="1"/>
+              <ng-container *ngFor="let bar of svgBars()">
+                <rect *ngIf="bar.d.success>0" [attr.x]="bar.x" [attr.y]="chartH-20-bar.sucH" [attr.width]="bar.bw" [attr.height]="bar.sucH" fill="#16a34a" rx="2"/>
+                <rect *ngIf="bar.d.failed>0"  [attr.x]="bar.x" [attr.y]="chartH-20-bar.sucH-bar.failH" [attr.width]="bar.bw" [attr.height]="bar.failH" fill="#dc2626" rx="2"/>
+                <text [attr.x]="bar.x+bar.bw/2" [attr.y]="chartH+12" text-anchor="middle" font-size="9" fill="#9ca3af">{{ bar.d.label }}</text>
+              </ng-container>
+              <line [attr.x1]="0" [attr.y1]="chartH-20" [attr.x2]="chartW" [attr.y2]="chartH-20" stroke="#e5e7eb" stroke-width="1"/>
+            </svg>
+          </div>
+          <div class="panel-header" style="margin-top:16px"><h3>Activité récente</h3></div>
+          <ng-container *ngTemplateOutlet="feedList"></ng-container>
+        </div>
+      </div>
+
+      <!-- Rocket deploy hint -->
+      <div class="rocket-hint-bar">
+        <span class="rh-icon">🚀</span>
+        <div class="rh-body">
+          <strong>Déploiement automatique disponible</strong>
+          <span>Vos pipelines déclenchent automatiquement un déploiement via Jenkins. Contactez votre équipe DevOps pour configurer un déploiement manuel.</span>
+        </div>
+        <a routerLink="/projects" class="btn-sm-green">Voir mes projets</a>
+      </div>
+
+    </ng-container>
+
+  </ng-container>
+
+</div>
+
+<!-- ── Shared templates ─────────────────────────────────────── -->
+<ng-template #barChart>
+  <div class="bar-chart-wrap">
+    <svg [attr.viewBox]="'0 0 ' + chartW + ' ' + (chartH + 30)" width="100%" preserveAspectRatio="none">
+      <line *ngFor="let pct of [25,50,75,100]" [attr.x1]="0" [attr.y1]="chartH-20-((pct/100)*(chartH-20))" [attr.x2]="chartW" [attr.y2]="chartH-20-((pct/100)*(chartH-20))" stroke="#f3f4f6" stroke-width="1"/>
+      <ng-container *ngFor="let bar of svgBars()">
+        <rect *ngIf="bar.d.success>0"  [attr.x]="bar.x" [attr.y]="chartH-20-bar.sucH" [attr.width]="bar.bw" [attr.height]="bar.sucH" fill="#16a34a" rx="2"/>
+        <rect *ngIf="bar.d.failed>0"   [attr.x]="bar.x" [attr.y]="chartH-20-bar.sucH-bar.failH" [attr.width]="bar.bw" [attr.height]="bar.failH" fill="#dc2626" rx="2"/>
+        <rect *ngIf="bar.d.security>0" [attr.x]="bar.x" [attr.y]="chartH-20-bar.sucH-bar.failH-bar.secH" [attr.width]="bar.bw" [attr.height]="bar.secH" fill="#d97706" rx="2"/>
+        <text [attr.x]="bar.x+bar.bw/2" [attr.y]="chartH+12" text-anchor="middle" font-size="9" fill="#9ca3af">{{ bar.d.label }}</text>
+      </ng-container>
+      <line [attr.x1]="0" [attr.y1]="chartH-20" [attr.x2]="chartW" [attr.y2]="chartH-20" stroke="#e5e7eb" stroke-width="1"/>
+    </svg>
+  </div>
+</ng-template>
+
+<ng-template #donutChart>
+  <div class="donut-wrap">
+    <svg viewBox="0 0 140 140" width="140" height="140">
+      <circle cx="70" cy="70" r="54" fill="none" stroke="#f3f4f6" stroke-width="18"/>
+      <ng-container *ngIf="donutSegments().length">
+        <circle *ngFor="let seg of donutSegments()" cx="70" cy="70" r="54" fill="none" [attr.stroke]="seg.color" stroke-width="18" [attr.stroke-dasharray]="seg.dash + ' ' + seg.gap" [attr.stroke-dashoffset]="-seg.offset" transform="rotate(-90 70 70)"/>
+      </ng-container>
+      <text x="70" y="66" text-anchor="middle" font-size="22" font-weight="800" fill="#111827">{{ successRate() }}%</text>
+      <text x="70" y="82" text-anchor="middle" font-size="9" fill="#6b7280">Taux succès</text>
+    </svg>
+    <div class="donut-legend">
+      <div class="donut-leg" *ngFor="let seg of donutSegments()"><span class="donut-dot" [style.background]="seg.color"></span><span class="donut-label">{{ seg.label }}</span><span class="donut-val">{{ seg.value }}</span></div>
+      <div class="donut-leg" *ngIf="!donutSegments().length"><span class="donut-label" style="color:#9ca3af">Aucune donnée</span></div>
+    </div>
+  </div>
+</ng-template>
+
+<ng-template #feedList>
+  <div class="feed-list">
+    <div class="feed-item" *ngFor="let n of recentNotifications()" [class.feed-success]="n.eventType==='PIPELINE_SUCCESS'" [class.feed-failed]="n.eventType==='PIPELINE_FAILED'" [class.feed-security]="n.eventType.startsWith('SECURITY')">
+      <div class="feed-icon-wrap"><span class="feed-icon">{{ eventIcon(n.eventType) }}</span></div>
+      <div class="feed-body"><div class="feed-type">{{ eventLabel(n.eventType) }}</div><div class="feed-msg">{{ n.message | slice:0:55 }}{{ n.message.length>55?'…':'' }}</div></div>
+      <div class="feed-time">{{ timeAgo(n.createdAt) }}</div>
+    </div>
+    <div class="empty-state" *ngIf="!recentNotifications().length"><p>Aucune activité récente</p></div>
+  </div>
+</ng-template>
+
+<ng-template #projectList>
+  <div class="project-list">
+    <div class="project-item" *ngFor="let p of recentProjects()">
+      <div class="proj-dot" [class.dot-active]="!p.status||p.status==='ACTIVE'"></div>
+      <div class="proj-info"><div class="proj-name">{{ p.name }}</div><div class="proj-url">{{ p.repositoryUrl | slice:0:38 }}{{ p.repositoryUrl.length>38?'…':'' }}</div></div>
+      <div class="proj-meta"><span class="proj-branch">{{ p.branch }}</span><span class="proj-vcs">{{ p.vcsType }}</span></div>
+    </div>
+    <div class="empty-state" *ngIf="!recentProjects().length"><p>Aucun projet</p><a routerLink="/projects" class="btn-sm">Créer</a></div>
+  </div>
+</ng-template>

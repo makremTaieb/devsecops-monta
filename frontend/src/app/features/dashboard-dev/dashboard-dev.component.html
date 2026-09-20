@@ -1,0 +1,255 @@
+<div class="page">
+
+  <!-- ══ HEADER ══════════════════════════════════════════════════ -->
+  <div class="page-header">
+    <div>
+      <h1>Dashboard Développeur</h1>
+      <p>Supervision — Projets, pipelines, tests et qualité du code.</p>
+    </div>
+    <div class="header-right">
+      <span class="refresh-info">{{ lastRefresh() | date:'HH:mm:ss' }}</span>
+      <button class="btn-refresh" (click)="loadAll()" [disabled]="loading()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+        </svg>
+        Actualiser
+      </button>
+      <span class="today-badge">{{ today | date:'EEE d MMM yyyy' : '' : 'fr' }}</span>
+    </div>
+  </div>
+
+  <ng-container *ngIf="loading()">
+    <div class="skeleton-grid"><div class="skeleton-card" *ngFor="let i of [1,2,3,4]"></div></div>
+  </ng-container>
+
+  <ng-container *ngIf="!loading()">
+
+    <!-- ══ ROW 1 — KPIs ═════════════════════════════════════════ -->
+    <div class="kpi-grid">
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ kpis().projects }}</div>
+          <div class="kpi-label">Projets</div>
+          <div class="kpi-sub">{{ kpis().active }} enregistré(s)</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-green">
+        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ kpis().succeeded }}</div>
+          <div class="kpi-label">Déploiements réussis</div>
+          <div class="kpi-sub">{{ kpis().succeeded }} DEPLOYED</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-red">
+        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ kpis().blocked }}</div>
+          <div class="kpi-label">Vulnérabilités critiques</div>
+          <div class="kpi-sub">Analysé récemment</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-purple">
+        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ kpis().pipelines }}</div>
+          <div class="kpi-label">Temps moyen pipeline</div>
+          <div class="kpi-sub">{{ kpis().total }} pipeline(s) au total</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ROW 2 — TEST RESULTS + BUILD HISTORY + TEST COVERAGE ══ -->
+    <div class="three-col-row">
+
+      <!-- Résultats des tests -->
+      <div class="section-card test-results-card">
+        <div class="section-header">
+          <h3>Résultats des tests</h3>
+          <span class="sub-label">Cumul sur tous les builds</span>
+        </div>
+
+        <div class="test-rate-row">
+          <span class="test-rate-label">TAUX DE SUCCÈS</span>
+          <span class="test-rate-value" [class.rate-good]="testResults().rate>=70" [class.rate-bad]="testResults().rate<50">
+            {{ testResults().rate }}%
+          </span>
+        </div>
+        <div class="test-progress-bar">
+          <div class="test-progress-fill"
+               [style.width.%]="testResults().rate"
+               [class.fill-good]="testResults().rate>=70"
+               [class.fill-med]="testResults().rate>=50 && testResults().rate<70"
+               [class.fill-bad]="testResults().rate<50">
+          </div>
+        </div>
+        <div class="test-fraction">{{ testResults().passed }} / {{ testResults().total }} tests passés</div>
+
+        <div class="test-counts">
+          <div class="tcount tcount-pass">
+            <div class="tcount-num">{{ testResults().passed }}</div>
+            <div class="tcount-lbl">Passés</div>
+          </div>
+          <div class="tcount tcount-fail">
+            <div class="tcount-num">{{ testResults().failed }}</div>
+            <div class="tcount-lbl">Échoués</div>
+          </div>
+          <div class="tcount tcount-skip">
+            <div class="tcount-num">{{ testResults().ignored }}</div>
+            <div class="tcount-lbl">Ignorés</div>
+          </div>
+        </div>
+
+        <a routerLink="/pipelines" class="btn-analysis">Voir l'analyse complète</a>
+      </div>
+
+      <!-- Historique des builds -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Historique des builds</h3>
+          <span class="sub-label">5 derniers builds analysés</span>
+        </div>
+        <div class="build-list">
+          <div class="build-item" *ngFor="let n of buildHistory()">
+            <span class="build-status-dot" [ngClass]="buildStatusClass(n.eventType)">
+              {{ n.eventType==='PIPELINE_SUCCESS' ? '✓' : '✕' }}
+            </span>
+            <div class="build-info">
+              <div class="build-proj">{{ n.message | slice:0:28 }}{{ n.message.length>28?'…':'' }}</div>
+              <div class="build-msg">Build #{{ n.projectId || '—' }} · {{ timeAgo(n.createdAt) }}</div>
+            </div>
+            <span class="build-badge" [ngClass]="buildStatusClass(n.eventType)">
+              {{ buildStatusLabel(n.eventType) }}
+            </span>
+          </div>
+          <div class="empty-panel" *ngIf="!buildHistory().length">
+            <p>Aucun build récent</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Taux de tests par build -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Taux de tests</h3>
+          <span class="sub-label">Couverture &amp; santé des stages — dernier build</span>
+        </div>
+
+        <div class="cov-summary">
+          <div class="cov-row">
+            <span class="cov-lbl">COUV. TESTS (MOY.)</span>
+            <span class="cov-val" [class.cov-zero]="testResults().rate===0">{{ testResults().rate === 0 ? '0%' : testResults().rate + '%' }}</span>
+          </div>
+          <div class="cov-diff" [class.cov-zero]="true">0% vs build précédent</div>
+          <div class="cov-row" style="margin-top:8px">
+            <span class="cov-lbl">COUV. SONAR (MOY.)</span>
+            <span class="cov-val cov-zero">{{ testResults().rate === 0 ? '0%' : testResults().rate + '%' }}</span>
+          </div>
+          <div class="cov-diff cov-zero">Dernier build : {{ testResults().rate === 0 ? '0.0%' : testResults().rate + '%' }}</div>
+        </div>
+
+        <div class="cov-stages-title">STAGES — BUILD #1</div>
+        <div class="cov-stages-table" *ngIf="buildCoverage().length; else noCoverage">
+          <div class="cov-header-row">
+            <span></span>
+            <span>Bui</span><span>Do</span><span>Te</span><span>Ne</span><span>Deploy</span>
+          </div>
+          <div class="cov-data-row" *ngFor="let b of buildCoverage()">
+            <span class="cov-build-lbl">{{ b.buildNum }}</span>
+            <span class="cov-cell" [ngClass]="stageColClass(b.stages['Build'])">{{ b.stages['Build'] === '—' ? '—' : (b.stages['Build'] === 'SUCCESS' ? '✓' : '✕') }}</span>
+            <span class="cov-cell" [ngClass]="stageColClass(b.stages['Deploy'])">{{ b.stages['Deploy'] === '—' ? '—' : (b.stages['Deploy'] === 'SUCCESS' ? '✓' : '✕') }}</span>
+            <span class="cov-cell" [ngClass]="stageColClass(b.stages['Tests'])">{{ b.stages['Tests'] === '—' ? '—' : (b.stages['Tests'] === 'SUCCESS' ? '✓' : '✕') }}</span>
+            <span class="cov-cell" [ngClass]="stageColClass(b.stages['Nexus'])">{{ b.stages['Nexus'] === '—' ? '—' : (b.stages['Nexus'] === 'SUCCESS' ? '✓' : '✕') }}</span>
+            <span class="cov-cell" [ngClass]="stageColClass(b.stages['OWASP'])">{{ b.stages['OWASP'] === '—' ? '—' : (b.stages['OWASP'] === 'SUCCESS' ? '✓' : '✕') }}</span>
+          </div>
+        </div>
+        <ng-template #noCoverage>
+          <div class="empty-panel" style="margin-top:12px"><p>Aucune donnée de couverture</p></div>
+        </ng-template>
+      </div>
+
+    </div>
+
+    <!-- ══ ROW 3 — PIPELINE STAGE TREE ══════════════════════════ -->
+    <div class="section-card">
+      <div class="section-header">
+        <h3>⚡ Pipelines — Arbre des étapes</h3>
+        <a routerLink="/pipelines" class="panel-link">Gérer les pipelines →</a>
+      </div>
+      <div class="pipeline-tree" *ngIf="pipelineStageTree().length; else noPipes">
+        <div class="ptree-pipeline" *ngFor="let item of pipelineStageTree()">
+          <div class="ptree-header">
+            <div class="ptree-name">
+              <span class="ptree-icon">⚡</span>
+              <strong>{{ item.pipeline.name }}</strong>
+              <span class="ptree-job">{{ item.pipeline.jenkinsJobName }}</span>
+            </div>
+            <div class="ptree-meta">
+              <span class="ptree-proj">Projet #{{ item.pipeline.projectId }}</span>
+              <span class="ptree-status" [ngClass]="'ps-' + (item.pipeline.status | lowercase)">{{ item.pipeline.status }}</span>
+            </div>
+          </div>
+          <div class="stage-chain" *ngIf="item.lastExec?.stages?.length">
+            <div class="stage-step" *ngFor="let s of item.lastExec!.stages; let last=last">
+              <div class="stage-node" [ngClass]="stageStatusClass(s.status)">
+                <span class="stage-icon">{{ stageStatusIcon(s.status) }}</span>
+              </div>
+              <div class="stage-label">{{ s.stageName }}</div>
+              <div class="stage-connector" *ngIf="!last"></div>
+            </div>
+          </div>
+          <div class="stage-no-exec" *ngIf="!item.lastExec"><span>Aucune exécution</span></div>
+        </div>
+      </div>
+      <ng-template #noPipes><div class="empty-panel"><p>Aucun pipeline disponible</p><a routerLink="/projects" class="btn-sm">Créer un projet</a></div></ng-template>
+    </div>
+
+    <!-- ══ ROW 4 — ACCOUNT TREE + NOTIFICATIONS ═════════════════ -->
+    <div class="two-col-row">
+      <div class="section-card">
+        <div class="section-header"><h3>🌲 Arbre des comptes</h3></div>
+        <div class="acc-tree">
+          <ng-container *ngTemplateOutlet="treeNode; context: { nodes: accountTree(), depth: 0 }"></ng-container>
+        </div>
+        <ng-template #treeNode let-nodes="nodes" let-depth="depth">
+          <div class="tree-item" *ngFor="let node of nodes" [style.padding-left.px]="depth * 18">
+            <div class="tree-row" (click)="node.children && toggleNode(node)" [class.tree-clickable]="node.children">
+              <span class="tree-toggle" *ngIf="node.children">{{ node.expanded ? '▾' : '▸' }}</span>
+              <span class="tree-toggle-spacer" *ngIf="!node.children"></span>
+              <span class="tree-icon">{{ node.icon }}</span>
+              <span class="tree-label" [style.color]="node.color" [class.tree-root]="node.type==='root'" [class.tree-group]="node.type==='group'" [class.tree-user]="node.type==='user'">{{ node.label }}</span>
+              <span class="tree-count" *ngIf="node.children">{{ node.children.length }}</span>
+            </div>
+            <ng-container *ngIf="node.expanded && node.children">
+              <ng-container *ngTemplateOutlet="treeNode; context: { nodes: node.children, depth: depth + 1 }"></ng-container>
+            </ng-container>
+          </div>
+        </ng-template>
+      </div>
+
+      <div class="section-card">
+        <div class="section-header">
+          <h3>🔔 Notifications</h3>
+          <a routerLink="/notifications" class="panel-link">Voir tout →</a>
+        </div>
+        <div class="feed-list">
+          <div class="feed-item" *ngFor="let n of notifFeed()"
+               [class.feed-success]="n.eventType==='PIPELINE_SUCCESS'"
+               [class.feed-failed]="n.eventType==='PIPELINE_FAILED' || n.eventType==='DEPLOYMENT_FAILED'"
+               [class.feed-security]="n.eventType.startsWith('SECURITY')">
+            <span class="feed-icon">{{ eventIcon(n.eventType) }}</span>
+            <div class="feed-body">
+              <div class="feed-type">{{ eventLabel(n.eventType) }}</div>
+              <div class="feed-msg">{{ n.message | slice:0:52 }}{{ n.message.length>52?'…':'' }}</div>
+            </div>
+            <span class="feed-time">{{ timeAgo(n.createdAt) }}</span>
+          </div>
+          <div class="empty-panel" *ngIf="!notifFeed().length"><p>Aucune notification</p></div>
+        </div>
+      </div>
+    </div>
+
+  </ng-container>
+</div>

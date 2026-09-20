@@ -1,0 +1,195 @@
+<div class="page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <h2>Pipelines CI/CD</h2>
+    <div class="selectors">
+      <select class="sel" (change)="onProjectChange($event)">
+        <option value="">— Sélectionner un projet —</option>
+        <option *ngFor="let p of projects()" [value]="p.id">{{ p.name }}</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Pipeline list -->
+  <div class="pipeline-list" *ngIf="pipelines().length">
+    <div class="pipeline-chip"
+         *ngFor="let p of pipelines()"
+         [class.active]="selectedPipeline()?.id === p.id"
+         (click)="selectPipeline(p)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      {{ p.name }}
+      <span class="chip-job">{{ p.jenkinsJobName }}</span>
+    </div>
+  </div>
+
+  <!-- Analytics row (only when pipeline selected and has executions) -->
+  <ng-container *ngIf="selectedPipeline() && executions().length">
+
+    <!-- ── STATS CARDS ── -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-val">{{ stats().total }}</div>
+        <div class="stat-label">Total exécutions</div>
+      </div>
+      <div class="stat-card stat-green">
+        <div class="stat-val">{{ stats().success }}</div>
+        <div class="stat-label">Succès</div>
+        <div class="stat-pct">{{ stats().rate }}%</div>
+      </div>
+      <div class="stat-card stat-red">
+        <div class="stat-val">{{ stats().failed }}</div>
+        <div class="stat-label">Échecs</div>
+      </div>
+      <div class="stat-card stat-blue" *ngIf="stats().running > 0">
+        <div class="stat-val">{{ stats().running }}</div>
+        <div class="stat-label">En cours</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">{{ fmtDuration(stats().avgDuration) }}</div>
+        <div class="stat-label">Durée moyenne</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">{{ fmtDuration(stats().minDuration) }}</div>
+        <div class="stat-label">Durée min</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">{{ fmtDuration(stats().maxDuration) }}</div>
+        <div class="stat-label">Durée max</div>
+      </div>
+    </div>
+
+    <!-- ── TIMELINE CHART ── -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h3>Timeline des exécutions (20 dernières)</h3>
+        <div class="chart-legend">
+          <span class="leg" style="color:#16a34a">■ Succès</span>
+          <span class="leg" style="color:#dc2626">■ Échec</span>
+          <span class="leg" style="color:#3b82f6">■ En cours</span>
+        </div>
+      </div>
+      <div class="timeline-chart">
+        <div class="tl-row" *ngFor="let bar of timelineBars()">
+          <div class="tl-label">#{{ bar.exec.id }}</div>
+          <div class="tl-bar-wrap">
+            <div class="tl-bar"
+                 [style.width.%]="bar.width"
+                 [style.background]="bar.color"
+                 [title]="bar.exec.status + ' — ' + fmtDuration(bar.dur)">
+            </div>
+          </div>
+          <div class="tl-dur">{{ bar.dur > 0 ? fmtDuration(bar.dur) : bar.exec.status }}</div>
+          <div class="tl-commit">{{ bar.exec.commitHash | slice:0:8 }}</div>
+        </div>
+      </div>
+
+      <!-- Trend sparkline -->
+      <div class="trend-section">
+        <div class="trend-label">Tendance succès/échec (10 dernières exécutions)</div>
+        <svg viewBox="0 0 100 100" width="100%" height="60" preserveAspectRatio="none" class="trend-svg">
+          <line x1="0" y1="50" x2="100" y2="50" stroke="#f3f4f6" stroke-width="1"/>
+          <polyline [attr.points]="trendPolyline()"
+                    fill="none" stroke="#3b82f6" stroke-width="2" stroke-linejoin="round"/>
+          <circle *ngFor="let pt of trendPoints()"
+                  [attr.cx]="pt.x" [attr.cy]="pt.y" r="3"
+                  [attr.fill]="pt.status==='SUCCESS'?'#16a34a':pt.status==='FAILED'?'#dc2626':'#9ca3af'"/>
+        </svg>
+      </div>
+    </div>
+
+  </ng-container>
+
+  <!-- ── TRIGGER FORM ── -->
+  <div class="trigger-card" *ngIf="selectedPipeline()">
+    <div class="trigger-header">
+      <h3>Déclencher une exécution</h3>
+      <span class="trigger-job">{{ selectedPipeline()?.jenkinsJobName }}</span>
+    </div>
+    <div class="trigger-form">
+      <input [formControl]="commitCtrl" class="commit-input"
+             placeholder="Commit hash ou HEAD"/>
+      <button class="btn-trigger" (click)="trigger()"
+              [disabled]="triggering() || commitCtrl.invalid">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        {{ triggering() ? 'Déclenchement…' : 'Déclencher' }}
+      </button>
+    </div>
+    <div class="trigger-error" *ngIf="triggerError()">{{ triggerError() }}</div>
+  </div>
+
+  <!-- ── EXECUTIONS LIST ── -->
+  <div class="exec-section" *ngIf="selectedPipeline()">
+    <div class="exec-header">
+      <h3>Historique des exécutions</h3>
+      <button class="btn-refresh-sm" (click)="selectPipeline(selectedPipeline()!)" [disabled]="loadingExecs()">
+        ↻ Actualiser
+      </button>
+    </div>
+
+    <div class="loading-row" *ngIf="loadingExecs()">
+      <span class="spinner-sm"></span> Chargement…
+    </div>
+
+    <div class="exec-empty" *ngIf="!loadingExecs() && !executions().length">
+      Aucune exécution trouvée pour ce pipeline.
+    </div>
+
+    <div class="exec-list" *ngIf="!loadingExecs()">
+      <div class="exec-item" *ngFor="let e of executions()"
+           [class.exec-expanded]="expandedExec() === e.id">
+
+        <!-- Exec summary row -->
+        <div class="exec-summary" (click)="toggleExec(e.id)">
+          <span class="exec-status" [class]="statusClass(e.status)">
+            {{ statusLabel(e.status) }}
+          </span>
+          <span class="exec-id">#{{ e.id }}</span>
+          <span class="exec-commit">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="9"/>
+              <line x1="12" y1="15" x2="12" y2="22"/>
+            </svg>
+            {{ e.commitHash | slice:0:10 }}
+          </span>
+          <span class="exec-by">{{ e.triggeredBy || 'admin' }}</span>
+          <span class="exec-dur">{{ duration(e.startTime, e.endTime) }}</span>
+          <span class="exec-date">{{ e.startTime | date:'dd/MM HH:mm' }}</span>
+          <span class="exec-jenkins" *ngIf="e.jenkinsBuildUrl">
+            <a [href]="e.jenkinsBuildUrl" target="_blank" (click)="$event.stopPropagation()">
+              Jenkins #{{ e.jenkinsBuildNumber }}
+            </a>
+          </span>
+          <span class="exec-toggle">{{ expandedExec() === e.id ? '▲' : '▼' }}</span>
+        </div>
+
+        <!-- Stage breakdown -->
+        <div class="stage-breakdown" *ngIf="expandedExec() === e.id && e.stages?.length">
+          <div class="stage-row" *ngFor="let s of e.stages">
+            <span class="stage-icon" [class.stage-ok]="s.status==='SUCCESS'" [class.stage-fail]="s.status==='FAILED'">
+              {{ stageIcon(s.status) }}
+            </span>
+            <span class="stage-name">{{ s.stageName }}</span>
+            <span class="stage-type">{{ s.stageType }}</span>
+            <span class="stage-dur">{{ duration(s.startTime, s.endTime) }}</span>
+          </div>
+        </div>
+        <div class="stage-empty" *ngIf="expandedExec() === e.id && !e.stages?.length">
+          Pas de détail de stages disponible.
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- No project selected -->
+  <div class="empty-page" *ngIf="!selectedPipeline() && !pipelines().length && !projects().length">
+    <div class="empty-icon">⚙️</div>
+    <p>Sélectionnez un projet pour voir ses pipelines</p>
+  </div>
+
+</div>

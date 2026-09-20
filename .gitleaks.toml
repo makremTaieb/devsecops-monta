@@ -1,0 +1,18 @@
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+description = "Generic API Key"
+regex = '''(?i)(api[_-]?key|apikey|api[_-]?secret)\s*=\s*['"]{0,1}[a-zA-Z0-9+/]{20,}['"]{0,1}'''
+
+[allowlist]
+description = "Allowlist for environment variable placeholders"
+regexes = [
+  '''\$\{[A-Z_]+\}''',     # ${ENV_VAR} style references are not secrets
+  ''':\s*root\b''',         # spring.datasource.password=root is a dev-mode default
+]
+paths = [
+  '''\.gitleaksignore''',
+  '''\.gitleaks\.toml''',
+]

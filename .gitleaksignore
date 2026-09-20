@@ -1,0 +1,14 @@
+# These are environment variable placeholder patterns, not real secrets.
+# Real secrets are injected at runtime via Kubernetes secrets / env vars.
+
+# JWT_SECRET placeholder references are intentional env-var references
+[jwt.secret.*${JWT_SECRET}]
+
+# DB_PASSWORD placeholder - not a real secret
+[spring.datasource.password.*${DB_PASSWORD}]
+
+# MAIL_PASSWORD placeholder - not a real secret
+[spring.mail.password.*${MAIL_PASSWORD}]
+
+# JENKINS_API_TOKEN placeholder
+[jenkins.token.*${JENKINS_API_TOKEN}]

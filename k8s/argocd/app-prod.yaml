@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pfe-prod
+  namespace: argocd
+spec:
+  project: pfe-2026
+  source:
+    repoURL: https://github.com/makremTaieb/devsecops-monta.git
+    targetRevision: main
+    path: k8s/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: prod
+  syncPolicy:
+    # Manual approval for prod — no auto-sync
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,22 @@
+.modern-navbar {
+  display: flex !important;
+  gap: 15px;
+  padding: 12px;
+  margin: 10px;
+  background: #111;
+  border-radius: 14px;
+  width: fit-content;
+}
+
+.modern-navbar a {
+  color: white;
+  text-decoration: none;
+  padding: 8px 14px;
+  border-radius: 10px;
+  transition: 0.3s;
+}
+
+.modern-navbar a:hover {
+  background: #0dcaf0;
+  color: black;
+}

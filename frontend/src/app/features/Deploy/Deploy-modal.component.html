@@ -1,0 +1,292 @@
+<!-- Overlay -->
+<div class="modal-overlay" (click)="close()"></div>
+
+<!-- Modal panel -->
+<div class="modal-panel">
+
+  <!-- Header -->
+  <div class="modal-header">
+    <div class="modal-title">
+      <svg class="rocket-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+        <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+        <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
+        <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+      </svg>
+      Déploiement — {{ project.name }}
+    </div>
+    <button class="modal-close" (click)="close()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- ══════════════ STEP: CONFIG ══════════════ -->
+  <ng-container *ngIf="step() === 'config'">
+
+    <div class="modal-body">
+
+      <!-- Repository info -->
+      <div class="field-group">
+        <label class="field-label">URL du repository</label>
+        <div class="field-readonly">{{ repositoryUrl }}</div>
+      </div>
+
+      <!-- Loading pipelines -->
+      <div class="loading-inline" *ngIf="loading()">
+        <span class="spinner-sm"></span> Chargement des pipelines...
+      </div>
+
+      <!-- CREATE PIPELINE (no pipeline yet) -->
+      <div class="create-pipeline-box" *ngIf="!loading() && showCreatePipeline() && pipelines().length === 0">
+        <div class="create-pipeline-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/>
+            <line x1="8" y1="12" x2="16" y2="12"/>
+          </svg>
+          Aucun pipeline trouvé pour ce projet. Créez-en un :
+        </div>
+        <form [formGroup]="pipelineForm" class="pipeline-create-form">
+          <div class="field-group">
+            <label class="field-label">Nom du pipeline <span class="required">*</span></label>
+            <input class="field-input" formControlName="pipelineName" placeholder="devsecops-pipeline"/>
+            <div class="field-error" *ngIf="pipelineForm.get('pipelineName')?.invalid && pipelineForm.get('pipelineName')?.touched">Requis</div>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Jenkins Job Name <span class="required">*</span></label>
+            <input class="field-input" formControlName="jenkinsJobName" placeholder="devsecops-pipeline"/>
+            <div class="field-hint">Doit correspondre exactement au nom du job Jenkins</div>
+            <div class="field-error" *ngIf="pipelineForm.get('jenkinsJobName')?.invalid && pipelineForm.get('jenkinsJobName')?.touched">Requis</div>
+          </div>
+          <button class="btn-create-pipeline" type="button" (click)="createPipeline()" [disabled]="creatingPipeline()">
+            {{ creatingPipeline() ? 'Création...' : '+ Créer le pipeline' }}
+          </button>
+        </form>
+      </div>
+
+      <!-- DEPLOY FORM (pipelines exist) -->
+      <div class="deploy-config-section" *ngIf="!loading() && pipelines().length > 0">
+        <div class="deploy-config-header">
+          <span class="deploy-config-dot"></span>
+          Configuration du déploiement
+        </div>
+
+        <form [formGroup]="form">
+
+          <!-- Pipeline selector -->
+          <div class="field-group">
+            <label class="field-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+              Pipeline Jenkins <span class="required">*</span>
+            </label>
+            <select class="field-select" formControlName="pipelineId">
+              <option value="" disabled>Sélectionner un pipeline</option>
+              <option *ngFor="let p of pipelines()" [value]="p.id">
+                {{ p.name }} — Job: {{ p.jenkinsJobName }}
+              </option>
+            </select>
+            <div class="field-hint" *ngIf="selectedPipeline()">
+              Jenkins Job: <strong>{{ selectedPipeline()?.jenkinsJobName }}</strong>
+            </div>
+          </div>
+
+          <!-- Add another pipeline link -->
+          <div class="add-pipeline-link" *ngIf="!showCreatePipeline()">
+            <button type="button" class="btn-link" (click)="showCreatePipeline.set(true)">+ Ajouter un pipeline</button>
+          </div>
+
+          <!-- Inline add pipeline -->
+          <div class="create-pipeline-box mini" *ngIf="showCreatePipeline() && pipelines().length > 0">
+            <form [formGroup]="pipelineForm" class="pipeline-create-form">
+              <div class="fields-row">
+                <div class="field-group">
+                  <label class="field-label">Nom <span class="required">*</span></label>
+                  <input class="field-input" formControlName="pipelineName" placeholder="devsecops-pipeline"/>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">Jenkins Job <span class="required">*</span></label>
+                  <input class="field-input" formControlName="jenkinsJobName" placeholder="devsecops-pipeline"/>
+                </div>
+              </div>
+              <div class="form-actions-inline">
+                <button class="btn-create-pipeline" type="button" (click)="createPipeline()" [disabled]="creatingPipeline()">
+                  {{ creatingPipeline() ? 'Création...' : 'Créer' }}
+                </button>
+                <button class="btn-link" type="button" (click)="showCreatePipeline.set(false)">Annuler</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Environment -->
+          <div class="field-group">
+            <label class="field-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4"/>
+              </svg>
+              Environnement <span class="required">*</span>
+            </label>
+            <select class="field-select" formControlName="environment">
+              <option *ngFor="let env of environments" [value]="env">{{ env }}</option>
+            </select>
+          </div>
+
+          <!-- Commit Hash -->
+          <div class="field-group">
+            <label class="field-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <line x1="12" y1="2" x2="12" y2="9"/>
+                <line x1="12" y1="15" x2="12" y2="22"/>
+              </svg>
+              Commit Hash <span class="required">*</span>
+            </label>
+            <input class="field-input" formControlName="commitHash" placeholder="HEAD ou abc123f"/>
+            <div class="field-hint">Utilisez HEAD pour le dernier commit</div>
+            <div class="field-error" *ngIf="form.get('commitHash')?.invalid && form.get('commitHash')?.touched">
+              Minimum 3 caractères requis
+            </div>
+          </div>
+
+        </form>
+
+        <div class="error-alert" *ngIf="error()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          {{ error() }}
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="close()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+        Annuler
+      </button>
+      <button class="btn-deploy" (click)="confirmDeploy()"
+        [disabled]="form.invalid || deploying() || loading() || pipelines().length === 0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+          <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+        </svg>
+        {{ deploying() ? 'Lancement...' : 'Lancer le déploiement' }}
+      </button>
+    </div>
+
+  </ng-container>
+
+  <!-- ══════════════ STEP: DEPLOYING — Rocket Launch ══════════════ -->
+  <ng-container *ngIf="step() === 'deploying'">
+    <div class="modal-body deploying-body">
+
+      <!-- Rocket scene -->
+      <div class="rocket-launch-scene">
+        <!-- Stars -->
+        <div class="stars-bg">
+          <div class="star"></div><div class="star"></div><div class="star"></div>
+          <div class="star"></div><div class="star"></div><div class="star"></div>
+        </div>
+
+        <!-- Smoke -->
+        <div class="smoke">
+          <div class="smoke-puff"></div><div class="smoke-puff"></div>
+          <div class="smoke-puff"></div><div class="smoke-puff"></div>
+          <div class="smoke-puff"></div>
+        </div>
+
+        <!-- Rocket -->
+        <div class="rocket-wrapper">
+          <div class="rocket-flame"></div>
+          <svg class="rocket-svg" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Body -->
+            <path d="M32 8 C24 8 18 22 18 36 L46 36 C46 22 40 8 32 8Z" fill="#1d9e75"/>
+            <!-- Nose cone -->
+            <path d="M32 4 C29 4 26 6 24 10 L40 10 C38 6 35 4 32 4Z" fill="#0e7a5c"/>
+            <!-- Window -->
+            <circle cx="32" cy="24" r="5" fill="#e0f2fe" stroke="#0ea5e9" stroke-width="1.5"/>
+            <circle cx="32" cy="24" r="3" fill="#bae6fd"/>
+            <!-- Left fin -->
+            <path d="M18 36 L10 46 L20 42Z" fill="#0e7a5c"/>
+            <!-- Right fin -->
+            <path d="M46 36 L54 46 L44 42Z" fill="#0e7a5c"/>
+            <!-- Nozzle -->
+            <rect x="27" y="36" width="10" height="6" rx="2" fill="#374151"/>
+            <!-- Highlight -->
+            <path d="M28 14 C27 18 26 24 26 30" stroke="rgba(255,255,255,0.35)" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+
+        <!-- Launch pad -->
+        <div class="launch-pad"></div>
+      </div>
+
+      <p class="deploying-text">Déploiement en cours…</p>
+      <p class="deploying-sub">
+        Pipeline: <strong>{{ selectedPipeline()?.jenkinsJobName }}</strong><br/>
+        Environnement: <strong>{{ form.value.environment }}</strong><br/>
+        Commit: <code>{{ form.value.commitHash }}</code>
+      </p>
+      <p class="deploying-hint">Jenkins exécute le pipeline — interrogation toutes les 4s…</p>
+    </div>
+  </ng-container>
+
+  <!-- ══════════════ STEP: DONE ══════════════ -->
+  <ng-container *ngIf="step() === 'done'">
+    <div class="modal-body done-body">
+
+      <div class="result-icon" [class.success]="isSuccess" [class.failed]="isFailed">
+        <ng-container *ngIf="isSuccess">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </ng-container>
+        <ng-container *ngIf="isFailed">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </ng-container>
+      </div>
+
+      <h3 class="result-title">{{ statusLabel }}</h3>
+
+      <div class="result-details" *ngIf="execution()">
+        <div class="result-row">
+          <span class="result-key">Exécution ID</span>
+          <span class="result-val">#{{ execution()!.id }}</span>
+        </div>
+        <div class="result-row">
+          <span class="result-key">Statut</span>
+          <span class="result-val status-pill" [class]="execution()!.status.toLowerCase()">{{ execution()!.status }}</span>
+        </div>
+        <div class="result-row">
+          <span class="result-key">Commit</span>
+          <span class="result-val code">{{ execution()!.commitHash }}</span>
+        </div>
+        <div class="result-row">
+          <span class="result-key">Environnement</span>
+          <span class="result-val">{{ form.value.environment }}</span>
+        </div>
+        <div class="result-row" *ngIf="execution()!.jenkinsBuildUrl">
+          <span class="result-key">Jenkins</span>
+          <a [href]="execution()!.jenkinsBuildUrl" target="_blank" class="result-val link">Voir le build Jenkins →</a>
+        </div>
+      </div>
+
+      <div class="error-alert" *ngIf="isFailed && error()">{{ error() }}</div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-deploy" (click)="close()">Fermer</button>
+    </div>
+  </ng-container>
+
+</div>

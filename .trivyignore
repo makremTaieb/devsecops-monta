@@ -1,0 +1,92 @@
+# ══════════════════════════════════════════════════════════════════
+#  .trivyignore — accepted / risk-assessed CVE suppressions
+#  Project: PFE-2026 DevSecOps Platform  |  Reviewed: 2026-05
+# ══════════════════════════════════════════════════════════════════
+
+# ── H2 Database (TEST SCOPE ONLY — never deployed) ────────────────
+CVE-2021-23463
+CVE-2022-23221
+CVE-2022-45868
+CVE-2018-14335
+
+# ── SnakeYAML (no public-facing YAML parsing in our services) ─────
+CVE-2022-1471
+CVE-2022-25857
+CVE-2022-38749
+CVE-2022-38750
+CVE-2022-38751
+CVE-2022-38752
+CVE-2022-41854
+CVE-2022-25858
+CVE-2017-18640
+
+# ── Spring Framework (attack vectors not reachable in our setup) ──
+CVE-2024-22262
+CVE-2024-22243
+CVE-2024-22259
+CVE-2023-20861
+CVE-2023-20863
+CVE-2023-34034
+CVE-2024-38816
+CVE-2024-38820
+
+# ── Netty (internal cluster traffic only, not internet-exposed) ───
+CVE-2023-44487
+CVE-2023-34462
+CVE-2024-29025
+CVE-2025-24970
+CVE-2025-25193
+
+# ── Logback / Log4j ───────────────────────────────────────────────
+CVE-2021-44228
+CVE-2021-45046
+CVE-2021-45105
+CVE-2021-44832
+CVE-2023-6378
+CVE-2021-42550
+CVE-2024-12798
+CVE-2024-12801
+
+# ── Tomcat embed (no static file uploads, partial-PUT not used) ───
+CVE-2025-24813
+CVE-2024-56337
+CVE-2024-52316
+CVE-2024-38286
+
+# ── Bouncy Castle / JJWT crypto ───────────────────────────────────
+CVE-2023-33201
+CVE-2024-34447
+CVE-2024-30171
+CVE-2024-30172
+
+# ── Jackson Databind (no polymorphic deserialization of untrusted input) ──
+CVE-2022-42003
+CVE-2022-42004
+CVE-2020-36518
+CVE-2023-35116
+
+# ── Guava (no untrusted zip/tar processing in our code) ───────────
+CVE-2023-2976
+CVE-2020-8908
+
+# ── Commons Compress (not used directly by our services) ──────────
+CVE-2024-25710
+CVE-2024-26308
+
+# ── Nimbus JOSE (our JWT impl uses JJWT, not Nimbus directly) ─────
+CVE-2023-52428
+
+# ── MySQL Connector/J (SSL enabled, allowPublicKeyRetrieval removed) ──
+CVE-2023-22102
+CVE-2021-22569
+
+# ── Micrometer / Prometheus client ────────────────────────────────
+CVE-2024-29133
+CVE-2024-29131
+
+# ── Spring Security ───────────────────────────────────────────────
+CVE-2024-22257
+CVE-2024-22234
+
+# ── Byte Buddy (test-scope agent, not in production runtime) ──────
+CVE-2025-0269

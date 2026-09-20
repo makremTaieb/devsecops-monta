@@ -1,0 +1,52 @@
+.modern-navbar {
+  display: flex;
+  gap: 12px;
+  padding: 10px;
+  margin: 15px;
+  background: rgba(20, 20, 20, 0.85);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  width: fit-content;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+/* links */
+.modern-navbar a {
+  position: relative;
+  padding: 10px 16px;
+  color: #ddd;
+  text-decoration: none;
+  font-weight: 500;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+/* hover animation */
+.modern-navbar a:hover {
+  color: #0dcaf0;
+  transform: translateY(-2px);
+  background: rgba(13, 202, 240, 0.08);
+}
+
+/* active route */
+.modern-navbar a.active {
+  background: linear-gradient(135deg, #0dcaf0, #0d6efd);
+  color: white;
+  box-shadow: 0 5px 15px rgba(13, 202, 240, 0.3);
+}
+
+/* underline animation */
+.modern-navbar a::after {
+  content: "";
+  position: absolute;
+  bottom: 6px;
+  left: 15%;
+  width: 0%;
+  height: 2px;
+  background: white;
+  transition: 0.3s;
+}
+
+.modern-navbar a:hover::after {
+  width: 70%;
+}

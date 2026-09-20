@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pipeline-service
+  namespace: apps
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+
+  selector:
+    matchLabels:
+      app: pipeline-service
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  template:
+    metadata:
+      labels:
+        app: pipeline-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8082"
+        prometheus.io/path: "/actuator/prometheus"
+
+    spec:
+      terminationGracePeriodSeconds: 40
+
+      containers:
+        - name: pipeline-service
+          image: 192.168.56.10:5000/pipeline-service:latest
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 8082
+
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql.infra.svc.cluster.local:3306/pipelinedb?createDatabaseIfNotExist=true&useSSL=true&serverTimezone=UTC"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: { secretKeyRef: { name: db-secret, key: DB_USERNAME } }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-secret, key: DB_PASSWORD } }
+            - name: JWT_SECRET
+              valueFrom: { secretKeyRef: { name: jwt-secret, key: JWT_SECRET } }
+
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              value: "http://eureka-server.infra.svc.cluster.local:8761/eureka/"
+            - name: EUREKA_INSTANCE_HOSTNAME
+              value: "pipeline-service.apps.svc.cluster.local"
+            - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
+              value: "false"
+            - name: EUREKA_INSTANCE_NONSECUREPORT
+              value: "8082"
+
+            - name: JENKINS_URL
+              value: "http://192.168.56.10:8080"
+            - name: JENKINS_USERNAME
+              value: "admin"
+            - name: JENKINS_TOKEN
+              value: "1191735d78e67c11b3cbe11fba44d16f5f"
+
+            # ✅ Use JAVA_TOOL_OPTIONS — guaranteed to be picked up by the JVM
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xms256m -Xmx768m -XX:+ExitOnOutOfMemoryError"
+
+            # ✅ Expose and enable actuator health probes
+            - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+              value: "health,info,prometheus"
+            - name: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED
+              value: "true"
+            - name: MANAGEMENT_HEALTH_READINESSSTATE_ENABLED
+              value: "true"
+            - name: MANAGEMENT_HEALTH_LIVENESSSTATE_ENABLED
+              value: "true"
+
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "150m"
+            limits:
+              memory: "1Gi"
+              cpu: "300m"
+
+          startupProbe:
+            httpGet: { path: /actuator/health, port: 8082 }
+            failureThreshold: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: 8082 }
+            initialDelaySeconds: 0
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 10
+
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: 8082 }
+            initialDelaySeconds: 0
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pipeline-service
+  namespace: apps
+spec:
+  type: ClusterIP
+  selector:
+    app: pipeline-service
+  ports:
+    - port: 8082
+      targetPort: 8082

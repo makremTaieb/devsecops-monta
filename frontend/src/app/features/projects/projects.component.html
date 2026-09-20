@@ -1,0 +1,196 @@
+<div class="page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h2>Projets</h2>
+      <p class="subtitle">
+        <ng-container *ngIf="auth.role === 'DEVOPS' || auth.role === 'ADMIN'">Tous les projets de la plateforme</ng-container>
+        <ng-container *ngIf="auth.role === 'DEV'">Vos projets personnels</ng-container>
+      </p>
+    </div>
+    <button class="btn-primary" *ngIf="canCreate()" (click)="toggleForm()">+ Nouveau projet</button>
+  </div>
+
+  <!-- Privilege banner -->
+  <div class="privilege-banner" [attr.data-role]="auth.role">
+    <div class="priv-icon">{{ roleIcon() }}</div>
+    <div class="priv-body">
+      <div class="priv-title">{{ roleLabel() }}</div>
+      <div class="priv-perms">
+        <span class="perm perm-on"  *ngIf="canCreate()">✓ Créer des projets</span>
+        <span class="perm perm-off" *ngIf="!canCreate()">✗ Créer des projets</span>
+        <span class="perm perm-on"  *ngIf="canDeploy()">✓ Déployer</span>
+        <span class="perm perm-off" *ngIf="!canDeploy()">✗ Déployer</span>
+        <span class="perm perm-on"  *ngIf="canDelete()">✓ Supprimer</span>
+        <span class="perm perm-off" *ngIf="!canDelete()">✗ Supprimer</span>
+        <span class="perm perm-on"  *ngIf="auth.role === 'ADMIN'">✓ Administration</span>
+        <span class="perm perm-on"  *ngIf="auth.role === 'ADMIN' || auth.role === 'DEVOPS'">✓ Monitoring</span>
+        <span class="perm perm-off" *ngIf="auth.role === 'DEV'">✗ Monitoring</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create form -->
+  <div class="form-card" *ngIf="showForm()">
+    <h3>Nouveau projet</h3>
+    <form [formGroup]="form" (ngSubmit)="create()" novalidate>
+      <div class="fields-grid">
+        <div class="field"><label>Nom *</label><input formControlName="name" placeholder="nom-du-projet"/><span class="err" *ngIf="form.get('name')?.touched && form.get('name')?.invalid">Requis</span></div>
+        <div class="field"><label>URL Repository *</label><input formControlName="repositoryUrl" placeholder="https://github.com/..."/><span class="err" *ngIf="form.get('repositoryUrl')?.touched && form.get('repositoryUrl')?.invalid">Requis</span></div>
+        <div class="field"><label>Branche *</label><input formControlName="branch" placeholder="main"/></div>
+        <div class="field"><label>Owner</label><input formControlName="owner" placeholder="username"/></div>
+        <div class="field"><label>VCS Type *</label><select formControlName="vcsType"><option *ngFor="let v of vcsTypes" [value]="v">{{ v }}</option></select></div>
+      </div>
+      <div class="alert-error" *ngIf="formError()">{{ formError() }}</div>
+      <div class="form-actions">
+        <button type="button" class="btn-secondary" (click)="toggleForm()">Annuler</button>
+        <button type="submit" class="btn-primary">Créer</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="loading" *ngIf="loading()">Chargement...</div>
+
+  <!-- ══ ADMIN / DEVOPS VIEW — two sections ══ -->
+  <ng-container *ngIf="!loading() && (auth.role === 'ADMIN' || auth.role === 'DEVOPS')">
+
+    <!-- Section 1: Déploiement -->
+    <div class="section-header">
+      <div class="section-title-row">
+        <span class="section-icon">🚀</span>
+        <h3>Déploiement</h3>
+        <span class="section-desc">Projets prêts à déployer via Jenkins</span>
+      </div>
+    </div>
+    <div class="projects-grid" *ngIf="deployableProjects().length > 0">
+      <div class="project-card deployable" *ngFor="let p of deployableProjects()">
+        <div class="card-header">
+          <span class="card-title">{{ p.name }}</span>
+          <span class="status-badge active">ACTIVE</span>
+        </div>
+        <div class="card-body">
+          <p class="desc-label">Repository</p>
+          <p class="repo-url">{{ p.repositoryUrl }}</p>
+          <div class="meta">
+            <div class="meta-row"><span class="meta-label">Branche:</span><span class="branch-badge">{{ p.branch }}</span></div>
+            <div class="meta-row"><span class="meta-label">Owner:</span><span class="owner-badge"><span class="owner-dot"></span>{{ p.owner || p.createdBy }}</span></div>
+            <div class="meta-row"><span class="meta-label">Créé:</span><span>{{ p.createdAt | date:'dd/MM/yyyy' }}</span></div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <button class="btn-icon" title="Éditer">✏️</button>
+          <button class="btn-icon btn-danger" *ngIf="canDelete()" (click)="delete(p.id, p.name)" title="Supprimer">🗑️</button>
+          <button class="btn-deploy" (click)="openDeploy(p)">🚀 Déployer</button>
+        </div>
+      </div>
+    </div>
+    <div class="section-empty" *ngIf="deployableProjects().length === 0">
+      <p>Aucun projet à déployer.</p>
+      <button class="btn-primary" *ngIf="canCreate()" (click)="toggleForm()">+ Créer un projet</button>
+    </div>
+
+    <!-- Section 2: Pipelines -->
+    <div class="section-header" style="margin-top:28px">
+      <div class="section-title-row">
+        <span class="section-icon">⚡</span>
+        <h3>Gestion des Pipelines</h3>
+        <span class="section-desc">Suivi des exécutions CI/CD par projet</span>
+      </div>
+    </div>
+    <div class="pipeline-table-wrap">
+      <table class="pipeline-table">
+        <thead>
+          <tr>
+            <th>Projet</th>
+            <th>Repository</th>
+            <th>Branche</th>
+            <th>VCS</th>
+            <th>Owner</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of projects()">
+            <td><strong>{{ p.name }}</strong></td>
+            <td><a [href]="p.repositoryUrl" target="_blank" class="link-cell">{{ p.repositoryUrl | slice:0:35 }}{{ p.repositoryUrl.length>35?'…':'' }}</a></td>
+            <td><span class="branch-pill">{{ p.branch }}</span></td>
+            <td><span class="vcs-pill">{{ p.vcsType }}</span></td>
+            <td>{{ p.owner || p.createdBy }}</td>
+            <td><span class="status-badge active">ACTIVE</span></td>
+            <td>
+              <div class="table-actions">
+                <button class="btn-sm-action" (click)="openDeploy(p)" *ngIf="canDeploy()">🚀 Run</button>
+                <button class="btn-sm-action btn-sm-del" (click)="delete(p.id, p.name)" *ngIf="canDelete()">🗑️</button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="projects().length === 0">
+            <td colspan="7" style="text-align:center;color:#9ca3af;padding:32px">Aucun projet</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </ng-container>
+
+  <!-- ══ DEV VIEW — single grid with pipeline tree + rocket hint ══ -->
+  <ng-container *ngIf="!loading() && auth.role === 'DEV'">
+
+    <!-- Rocket hint bar -->
+    <div class="rocket-hint-bar">
+      <span>🚀</span>
+      <div class="rh-body"><strong>Déploiement automatique</strong><span>Vos commits déclenchent les pipelines Jenkins automatiquement. Le déploiement est géré par l'équipe DevOps.</span></div>
+    </div>
+
+    <!-- Section: Mes projets & pipelines -->
+    <div class="section-header">
+      <div class="section-title-row">
+        <span class="section-icon">💻</span>
+        <h3>Mes Projets & Pipelines</h3>
+        <span class="section-desc">Suivez l'état de vos builds</span>
+      </div>
+    </div>
+
+    <div class="projects-grid" *ngIf="projects().length > 0">
+      <div class="project-card" *ngFor="let p of projects()">
+        <div class="card-header">
+          <span class="card-title">{{ p.name }}</span>
+          <span class="status-badge active">ACTIVE</span>
+        </div>
+        <div class="card-body">
+          <p class="desc-label">Repository</p>
+          <p class="repo-url">{{ p.repositoryUrl }}</p>
+          <div class="meta">
+            <div class="meta-row"><span class="meta-label">Branche:</span><span class="branch-badge">{{ p.branch }}</span></div>
+            <div class="meta-row"><span class="meta-label">Owner:</span><span class="owner-badge"><span class="owner-dot"></span>{{ p.owner || p.createdBy }}</span></div>
+            <div class="meta-row"><span class="meta-label">Créé:</span><span>{{ p.createdAt | date:'dd/MM/yyyy' }}</span></div>
+            <div class="meta-row"><span class="meta-label">VCS:</span><span class="vcs-pill">{{ p.vcsType }}</span></div>
+          </div>
+          <!-- Pipeline account tree for DEV -->
+          <div class="account-tree-mini">
+            <div class="atm-row atm-root"><span class="atm-icon">⚡</span><span class="atm-label">Pipeline</span><span class="atm-badge atm-auto">Auto-trigger</span></div>
+            <div class="atm-row"><span class="atm-icon">🔨</span><span class="atm-label">Build</span><span class="atm-badge atm-ok">Jenkins</span></div>
+            <div class="atm-row"><span class="atm-icon">🛡️</span><span class="atm-label">Sécurité</span><span class="atm-badge atm-ok">SonarQube</span></div>
+            <div class="atm-row atm-locked"><span class="atm-icon">🔒</span><span class="atm-label">Déploiement</span><span class="atm-badge atm-locked-badge">DevOps only</span></div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <button class="btn-icon" title="Éditer">✏️</button>
+          <button class="btn-icon btn-danger" (click)="delete(p.id, p.name)" title="Supprimer">🗑️</button>
+          <span class="deploy-locked">🔒 Déploiement réservé DevOps</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-empty" *ngIf="projects().length === 0">
+      <p>Aucun projet trouvé.</p>
+      <button class="btn-primary" (click)="toggleForm()">+ Créer votre premier projet</button>
+    </div>
+
+  </ng-container>
+
+  <!-- Deploy modal -->
+  <app-deploy-modal *ngIf="deployingProject()" [project]="deployingProject()!" (closed)="closeDeploy()"></app-deploy-modal>
+</div>

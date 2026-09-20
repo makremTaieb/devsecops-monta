@@ -1,0 +1,245 @@
+name: pfe-devsecops
+
+services:
+  stb-mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks: [stb-network]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  stb-eureka:
+    build: ./Eureka-Server
+    restart: unless-stopped
+    ports:
+      - "${EUREKA_PORT:-8761}:8761"
+    networks: [stb-network]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+  stb-auth:
+    build: ./Auth-Service
+    restart: unless-stopped
+    ports:
+      - "${AUTH_PORT:-8081}:8081"
+    depends_on:
+      stb-mysql: {condition: service_healthy}
+      stb-eureka: {condition: service_healthy}
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://stb-eureka:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:mysql://stb-mysql:3306/authdb?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-this-secret-key-which-is-at-least-32-characters}
+      AUDIT_SERVICE_URL: http://stb-audit:8085/api/audit/log
+      SPRING_CLOUD_CONFIG_ENABLED: "false"
+      SPRING_CLOUD_CONFIG_IMPORT_CHECK_ENABLED: "false"
+    networks: [stb-network]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8081/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  stb-security:
+    build: ./SECURITY-SERVICE
+    restart: unless-stopped
+    ports:
+      - "${SECURITY_PORT:-8083}:8083"
+    depends_on:
+      stb-mysql: {condition: service_healthy}
+      stb-eureka: {condition: service_healthy}
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://stb-eureka:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:mysql://stb-mysql:3306/securitydb?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      SPRING_CLOUD_CONFIG_ENABLED: "false"
+      SPRING_CLOUD_CONFIG_IMPORT_CHECK_ENABLED: "false"
+    networks: [stb-network]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8083/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  stb-notification:
+    build: ./Notification-Service
+    restart: unless-stopped
+    ports:
+      - "${NOTIFICATION_PORT:-8087}:8087"
+    depends_on:
+      stb-mysql: {condition: service_healthy}
+      stb-eureka: {condition: service_healthy}
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://stb-eureka:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:mysql://stb-mysql:3306/notificationdb?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      SERVICES_AUTH_URL: http://stb-auth:8081
+      MAIL_USERNAME: ${MAIL_USERNAME:-disabled@localhost}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-docker-local-disabled}
+      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+      NOTIFICATION_SLACK_ENABLED: ${NOTIFICATION_SLACK_ENABLED:-false}
+      NOTIFICATION_SLACK_WEBHOOK_URL: ${NOTIFICATION_SLACK_WEBHOOK_URL:-}
+      SPRING_CLOUD_CONFIG_ENABLED: "false"
+      SPRING_CLOUD_CONFIG_IMPORT_CHECK_ENABLED: "false"
+    networks: [stb-network]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8087/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  stb-audit:
+    build: ./Audit-Log-Service
+    restart: unless-stopped
+    ports:
+      - "${AUDIT_PORT:-8085}:8085"
+    depends_on:
+      stb-mysql: {condition: service_healthy}
+      stb-eureka: {condition: service_healthy}
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://stb-eureka:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:mysql://stb-mysql:3306/auditlogdb?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-this-secret-key-which-is-at-least-32-characters}
+      SPRING_CLOUD_CONFIG_ENABLED: "false"
+      SPRING_CLOUD_CONFIG_IMPORT_CHECK_ENABLED: "false"
+    networks: [stb-network]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8085/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  stb-pipeline:
+    build: ./Pipeline-Service
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${PIPELINE_PORT:-8082}:8082"
+    depends_on:
+      stb-mysql: {condition: service_healthy}
+      stb-eureka: {condition: service_healthy}
+      stb-security: {condition: service_healthy}
+      stb-audit: {condition: service_healthy}
+      stb-notification: {condition: service_healthy}
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://stb-eureka:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:mysql://stb-mysql:3306/pipelinedb?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-this-secret-key-which-is-at-least-32-characters}
+      JENKINS_URL: ${JENKINS_URL:-http://host.docker.internal:8080}
+      JENKINS_USERNAME: ${JENKINS_USERNAME:-admin}
+      JENKINS_API_TOKEN: ${JENKINS_API_TOKEN:-docker-local-disabled}
+      AUDIT_SERVICE_URL: http://stb-audit:8085/api/audit/log
+      NOTIFICATION_SERVICE_URL: http://stb-notification:8087/api/notifications/pipeline-event
+      SPRING_CLOUD_CONFIG_ENABLED: "false"
+      SPRING_CLOUD_CONFIG_IMPORT_CHECK_ENABLED: "false"
+    networks: [stb-network]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8082/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  stb-prometheus:
+    image: prom/prometheus:v2.55.1
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks: [stb-network]
+
+  stb-grafana:
+    image: grafana/grafana:11.4.0
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - stb-prometheus
+    networks: [stb-network]
+
+  stb-gateway:
+    build: ./Gateway
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_PORT:-8084}:8084"
+    depends_on:
+      stb-eureka: {condition: service_healthy}
+      stb-auth: {condition: service_healthy}
+      stb-security: {condition: service_healthy}
+      stb-pipeline: {condition: service_healthy}
+      stb-notification: {condition: service_healthy}
+      stb-audit: {condition: service_healthy}
+    environment:
+      EUREKA_URL: http://stb-eureka:8761/eureka/
+      PROMETHEUS_URL: http://stb-prometheus:9090
+      SPRING_CLOUD_CONFIG_ENABLED: "false"
+      SPRING_CLOUD_CONFIG_IMPORT_CHECK_ENABLED: "false"
+    networks: [stb-network]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8084/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  stb-frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-4200}:80"
+    depends_on:
+      stb-gateway: {condition: service_healthy}
+    networks: [stb-network]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+networks:
+  stb-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  prometheus-data:
+  grafana-data:

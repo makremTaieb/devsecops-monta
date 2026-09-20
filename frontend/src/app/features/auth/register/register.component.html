@@ -1,0 +1,123 @@
+<div class="auth-shell" [class.ready]="true">
+
+  <!-- LEFT -->
+  <div class="brand-panel">
+    <div class="brand-content">
+
+      <div class="brand-logo">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
+             stroke="white" stroke-width="2.5" stroke-linecap="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+
+      <div class="brand-headline">
+        <h1>DevSecOps<br><em>STB</em></h1>
+        <p>Créer un compte sécurisé pour la plateforme bancaire</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="form-panel">
+
+    <div class="form-inner">
+
+      <div class="form-header">
+        <h2>Créer un compte</h2>
+        <p>Accès sécurisé DevSecOps</p>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+
+        <!-- USERNAME + EMAIL -->
+        <div class="field-row">
+
+          <div class="field"
+               [class.has-error]="form.get('username')?.touched && form.get('username')?.invalid">
+
+            <label>Username *</label>
+
+            <input formControlName="username" type="text" placeholder="username"/>
+
+            <small *ngIf="form.get('username')?.touched && form.get('username')?.invalid">
+              Min 3 caractères
+            </small>
+
+          </div>
+
+          <div class="field"
+               [class.has-error]="form.get('email')?.touched && form.get('email')?.invalid">
+
+            <label>Email *</label>
+
+            <input formControlName="email" type="email" placeholder="email@stb.tn"/>
+
+            <small *ngIf="form.get('email')?.touched && form.get('email')?.invalid">
+              Email invalide
+            </small>
+
+          </div>
+
+        </div>
+
+        <!-- PASSWORD -->
+        <div class="field"
+             [class.has-error]="form.get('password')?.touched && form.get('password')?.invalid">
+
+          <label>Mot de passe *</label>
+
+          <input formControlName="password" type="password" placeholder="Min 6 caractères"/>
+
+          <small *ngIf="form.get('password')?.touched && form.get('password')?.invalid">
+            Min 6 caractères
+          </small>
+
+        </div>
+
+        <!-- ROLE -->
+        <div class="field">
+
+          <label>Rôle</label>
+
+          <select formControlName="role">
+            <option *ngFor="let r of roles" [value]="r.value">
+              {{ r.label }}
+            </option>
+          </select>
+
+        </div>
+
+        <!-- ERROR -->
+        <p class="alert-error" *ngIf="error()">
+          {{ error() }}
+        </p>
+
+        <!-- SUBMIT -->
+        <button type="submit"
+                class="btn-submit"
+                [disabled]="form.invalid || loading()">
+
+          <span *ngIf="!loading()">Créer mon compte</span>
+          <span *ngIf="loading()">Chargement...</span>
+
+        </button>
+
+      </form>
+
+      <!-- 🔁 NAVIGATION -->
+      <div class="form-footer">
+        <p class="auth-link">
+          Déjà inscrit ?
+          <a routerLink="/auth/login">Se connecter →</a>
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
